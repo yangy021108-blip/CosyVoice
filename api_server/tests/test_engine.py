@@ -126,7 +126,7 @@ class EngineTest(unittest.TestCase):
         )
         engine.synthesize(request(voice="sft-test"), sft_voice)
 
-        calls = {name: kwargs for name, kwargs in backend.calls}
+        calls = dict(backend.calls)
         self.assertEqual(calls["add_zero_shot_spk"]["voice_id"], "default")
         self.assertEqual(
             calls["inference_zero_shot"]["zero_shot_spk_id"], "default"

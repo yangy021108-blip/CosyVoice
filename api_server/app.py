@@ -286,6 +286,7 @@ def create_app(
             ) from exc
 
         queued_at = time.perf_counter()
+
         async def run_inference():
             async with request.app.state.inference_slots:
                 queue_wait_ms = (time.perf_counter() - queued_at) * 1000.0
