@@ -1,5 +1,7 @@
 # CosyVoice HTTP API
 
+[中文使用指南](README_zh.md)
+
 This package adds a small product-facing HTTP layer without changing the model
 implementation under `cosyvoice/`.
 
