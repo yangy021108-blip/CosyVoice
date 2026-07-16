@@ -18,4 +18,3 @@ class SpeechRequest(BaseModel):
     response_format: Literal["wav", "pcm"] = "wav"
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
     instructions: str | None = Field(default=None, max_length=1000)
-    stream_format: Literal["audio"] = "audio"

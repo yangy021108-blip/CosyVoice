@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 import time
 from dataclasses import dataclass
+from importlib.util import find_spec
+from typing import Callable
 
 from api_server.audio_codec import collect_waveform, encode_wav, float_to_pcm16
 from api_server.config import Settings
@@ -25,9 +27,15 @@ class AudioResult:
 class CosyVoiceEngine:
     """One loaded model instance shared by a single Uvicorn worker."""
 
-    def __init__(self, settings: Settings, voice_store: VoiceStore) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        voice_store: VoiceStore,
+        backend_factory: Callable[[], object] | None = None,
+    ) -> None:
         self.settings = settings
         self.voice_store = voice_store
+        self._backend_factory = backend_factory
         self.backend = None
         self.sample_rate: int | None = None
         self.load_error: str | None = None
@@ -42,13 +50,14 @@ class CosyVoiceEngine:
             sys.path.append(str(matcha_path))
 
         try:
-            from cosyvoice.cli.cosyvoice import AutoModel
-
-            backend = AutoModel(
-                model_dir=str(self.settings.model_dir),
-                load_vllm=self.settings.load_vllm,
-                fp16=self.settings.fp16,
-            )
+            backend = self._create_backend()
+            available_spks = set(backend.list_available_spks())
+            for voice in self.voice_store.all():
+                if voice.mode == "sft" and voice.spk_id not in available_spks:
+                    raise ValueError(
+                        f"SFT speaker {voice.spk_id!r} for voice "
+                        f"{voice.voice_id!r} is not available"
+                    )
             for voice in self.voice_store.all():
                 if voice.mode == "zero_shot":
                     backend.add_zero_shot_spk(
@@ -62,6 +71,24 @@ class CosyVoiceEngine:
         except Exception as exc:
             self.load_error = f"{type(exc).__name__}: {exc}"
             raise
+
+    def _create_backend(self):
+        if self._backend_factory is not None:
+            return self._backend_factory()
+        if self.settings.load_vllm and find_spec("vllm") is None:
+            raise RuntimeError(
+                "COSYVOICE_LOAD_VLLM=true requires vLLM; install "
+                "api_server/requirements-vllm.txt or build the Docker image "
+                "with --build-arg INSTALL_VLLM=true"
+            )
+
+        from cosyvoice.cli.cosyvoice import AutoModel
+
+        return AutoModel(
+            model_dir=str(self.settings.model_dir),
+            load_vllm=self.settings.load_vllm,
+            fp16=self.settings.fp16,
+        )
 
     def synthesize(
         self, request: SpeechRequest, voice: VoiceSpec

@@ -23,6 +23,57 @@ from api_server.voice_store import VoiceStore
 LOGGER = logging.getLogger("cosyvoice.api")
 
 
+def _release_admission_when_done(
+    task: asyncio.Task, admission: asyncio.BoundedSemaphore
+) -> None:
+    try:
+        if not task.cancelled():
+            task.exception()
+    finally:
+        admission.release()
+
+
+async def _await_inference_task(
+    task: asyncio.Task,
+    admission: asyncio.BoundedSemaphore,
+    timeout_seconds: float,
+):
+    release_immediately = True
+    try:
+        try:
+            return await asyncio.wait_for(
+                asyncio.shield(task), timeout=timeout_seconds
+            )
+        except asyncio.TimeoutError as exc:
+            # Python threads cannot safely cancel an in-flight GPU call. Keep
+            # both capacity semaphores owned until the backend really finishes.
+            release_immediately = False
+            task.add_done_callback(
+                lambda completed: _release_admission_when_done(
+                    completed, admission
+                )
+            )
+            raise ServiceError(
+                504,
+                "Speech synthesis timed out",
+                code="inference_timeout",
+                error_type="server_error",
+            ) from exc
+        except asyncio.CancelledError:
+            # A disconnected/cancelled HTTP request must not make room for more
+            # work while its shielded GPU task is still alive.
+            release_immediately = False
+            task.add_done_callback(
+                lambda completed: _release_admission_when_done(
+                    completed, admission
+                )
+            )
+            raise
+    finally:
+        if release_immediately:
+            admission.release()
+
+
 def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", "unknown")
 
@@ -215,11 +266,18 @@ def create_app(
                 code="voice_not_found",
                 param="voice",
             )
+        if payload.instructions and voice.mode != "zero_shot":
+            raise ServiceError(
+                400,
+                f"instructions are not supported by voice {voice.voice_id!r}",
+                code="unsupported_parameter",
+                param="instructions",
+            )
 
         admission = request.app.state.admission_slots
         try:
             await asyncio.wait_for(admission.acquire(), timeout=0.01)
-        except TimeoutError as exc:
+        except asyncio.TimeoutError as exc:
             raise ServiceError(
                 429,
                 "The inference queue is full",
@@ -228,36 +286,24 @@ def create_app(
             ) from exc
 
         queued_at = time.perf_counter()
-        try:
-            async def run_inference():
-                async with request.app.state.inference_slots:
-                    queue_wait_ms = (time.perf_counter() - queued_at) * 1000.0
-                    result = await asyncio.to_thread(
-                        request.app.state.engine.synthesize, payload, voice
-                    )
-                    return result, queue_wait_ms
+        async def run_inference():
+            async with request.app.state.inference_slots:
+                queue_wait_ms = (time.perf_counter() - queued_at) * 1000.0
+                result = await asyncio.to_thread(
+                    request.app.state.engine.synthesize, payload, voice
+                )
+                return result, queue_wait_ms
 
+        try:
             inference_task = asyncio.create_task(run_inference())
-            try:
-                result, queue_wait_ms = await asyncio.wait_for(
-                    asyncio.shield(inference_task),
-                    timeout=settings.request_timeout_seconds,
-                )
-            except TimeoutError as exc:
-                # Python threads cannot safely cancel an in-flight GPU call. The
-                # shielded task keeps holding the inference semaphore until the
-                # backend really finishes, preventing accidental concurrent use.
-                inference_task.add_done_callback(
-                    lambda task: task.exception() if not task.cancelled() else None
-                )
-                raise ServiceError(
-                    504,
-                    "Speech synthesis timed out",
-                    code="inference_timeout",
-                    error_type="server_error",
-                ) from exc
-        finally:
+        except BaseException:
             admission.release()
+            raise
+        result, queue_wait_ms = await _await_inference_task(
+            inference_task,
+            admission,
+            settings.request_timeout_seconds,
+        )
 
         LOGGER.info(
             "request_id=%s model=%s voice=%s chars=%d queue_wait_ms=%.2f "

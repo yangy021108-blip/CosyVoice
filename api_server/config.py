@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from ipaddress import ip_address
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +27,16 @@ def _env_int(name: str, default: int, minimum: int) -> int:
     return value
 
 
+def _is_loopback_host(host: str) -> bool:
+    normalized = host.strip().lower().strip("[]")
+    if normalized == "localhost":
+        return True
+    try:
+        return ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
 @dataclass(frozen=True)
 class Settings:
     """All service settings, with conservative single-GPU defaults."""
@@ -43,6 +54,19 @@ class Settings:
     request_timeout_seconds: int
     fp16: bool
     load_vllm: bool
+    allow_unauthenticated: bool = False
+
+    def __post_init__(self) -> None:
+        if (
+            self.api_key is None
+            and not _is_loopback_host(self.host)
+            and not self.allow_unauthenticated
+        ):
+            raise ValueError(
+                "COSYVOICE_API_KEY is required when binding to a non-loopback "
+                "address; set COSYVOICE_ALLOW_UNAUTHENTICATED=true only for "
+                "an intentionally unauthenticated deployment"
+            )
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -67,7 +91,7 @@ class Settings:
             model_dir=model_dir,
             voices_file=voices_file,
             api_key=api_key if api_key else None,
-            host=os.getenv("COSYVOICE_HOST", "0.0.0.0"),
+            host=os.getenv("COSYVOICE_HOST", "127.0.0.1"),
             port=_env_int("COSYVOICE_PORT", 8000, 1),
             max_text_characters=_env_int(
                 "COSYVOICE_MAX_TEXT_CHARACTERS", 2000, 1
@@ -79,4 +103,7 @@ class Settings:
             ),
             fp16=_env_bool("COSYVOICE_FP16", False),
             load_vllm=_env_bool("COSYVOICE_LOAD_VLLM", False),
+            allow_unauthenticated=_env_bool(
+                "COSYVOICE_ALLOW_UNAUTHENTICATED", False
+            ),
         )
