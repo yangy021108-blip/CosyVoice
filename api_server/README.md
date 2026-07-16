@@ -26,6 +26,24 @@ export COSYVOICE_API_KEY='replace-with-a-secret'
 python -m api_server.main
 ```
 
+For an isolated CUDA environment, build the API image from the small
+`api_server` context and mount the repository (the model stays outside the
+image):
+
+```bash
+docker build -t cosyvoice-api:dev -f api_server/Dockerfile api_server
+
+docker run --rm --gpus device=4 \
+  -p 8000:8000 \
+  -v "$PWD:/workspace/CosyVoice" \
+  -e COSYVOICE_API_KEY='replace-with-a-secret' \
+  cosyvoice-api:dev
+```
+
+The image intentionally supplies PyTorch/torchaudio as a matched pair in the
+base layer instead of reinstalling the older CUDA wheels from the repository's
+training-oriented `requirements.txt`.
+
 Useful settings:
 
 | Environment variable | Default |
