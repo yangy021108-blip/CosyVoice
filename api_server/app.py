@@ -237,11 +237,19 @@ def create_app(
                     )
                     return result, queue_wait_ms
 
+            inference_task = asyncio.create_task(run_inference())
             try:
                 result, queue_wait_ms = await asyncio.wait_for(
-                    run_inference(), timeout=settings.request_timeout_seconds
+                    asyncio.shield(inference_task),
+                    timeout=settings.request_timeout_seconds,
                 )
             except TimeoutError as exc:
+                # Python threads cannot safely cancel an in-flight GPU call. The
+                # shielded task keeps holding the inference semaphore until the
+                # backend really finishes, preventing accidental concurrent use.
+                inference_task.add_done_callback(
+                    lambda task: task.exception() if not task.cancelled() else None
+                )
                 raise ServiceError(
                     504,
                     "Speech synthesis timed out",
