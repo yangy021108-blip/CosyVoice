@@ -1,0 +1,5 @@
+# Install after requirements-runtime.txt. These versions are the combination
+# documented by CosyVoice for the vLLM V1 engine.
+numpy==1.26.4
+transformers==4.57.1
+vllm==0.11.0

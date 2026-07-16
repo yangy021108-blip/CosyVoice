@@ -1,0 +1,31 @@
+name: CosyVoice API tests
+
+on:
+  push:
+    paths:
+      - "api_server/**"
+      - ".github/workflows/api-tests.yml"
+  pull_request:
+    paths:
+      - "api_server/**"
+      - ".github/workflows/api-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: api_server/requirements-test.txt
+      - name: Install test dependencies
+        run: python -m pip install -r api_server/requirements-test.txt
+      - name: Run API unit tests
+        run: python -m unittest discover -s api_server/tests -v
+      - name: Compile API package
+        run: python -m compileall -q api_server

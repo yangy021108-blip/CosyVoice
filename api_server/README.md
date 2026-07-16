@@ -9,8 +9,8 @@ implementation under `cosyvoice/`.
 - `GET /health` and `GET /ready`: process and model readiness checks.
 - `GET /v1/models` and `GET /v1/audio/voices`: discover loaded capabilities.
 - One model process and one GPU inference at a time by default.
-- Optional Bearer authentication, bounded admission, request IDs, stable errors,
-  and basic latency/RTF response headers.
+- Bearer authentication for non-loopback deployments, bounded admission,
+  request IDs, stable errors, and basic latency/RTF response headers.
 
 The first version is intentionally non-streaming. It does not pretend to
 support MP3/Opus, SSML, pitch control, arbitrary sample rates, or word
@@ -36,6 +36,7 @@ docker build -t cosyvoice-api:dev -f api_server/Dockerfile api_server
 docker run --rm --gpus device=4 \
   -p 8000:8000 \
   -v "$PWD:/workspace/CosyVoice" \
+  -e COSYVOICE_HOST=0.0.0.0 \
   -e COSYVOICE_API_KEY='replace-with-a-secret' \
   cosyvoice-api:dev
 ```
@@ -44,6 +45,17 @@ The image intentionally supplies PyTorch/torchaudio as a matched pair in the
 base layer instead of reinstalling the older CUDA wheels from the repository's
 training-oriented `requirements.txt`.
 
+The base image uses the regular PyTorch backend. Build the explicit vLLM
+variant when `COSYVOICE_LOAD_VLLM=true` is required:
+
+```bash
+docker build --build-arg INSTALL_VLLM=true \
+  -t cosyvoice-api:vllm -f api_server/Dockerfile api_server
+```
+
+The vLLM layer is pinned separately in `requirements-vllm.txt`. Enabling vLLM
+without installing that layer fails at startup with an actionable error.
+
 Useful settings:
 
 | Environment variable | Default |
@@ -51,7 +63,8 @@ Useful settings:
 | `COSYVOICE_MODEL_ALIAS` | `cosyvoice3-0.5b` |
 | `COSYVOICE_MODEL_DIR` | `pretrained_models/Fun-CosyVoice3-0.5B` |
 | `COSYVOICE_VOICES_FILE` | `api_server/voices.json` |
-| `COSYVOICE_HOST` / `COSYVOICE_PORT` | `0.0.0.0` / `8000` |
+| `COSYVOICE_HOST` / `COSYVOICE_PORT` | `127.0.0.1` / `8000` |
+| `COSYVOICE_ALLOW_UNAUTHENTICATED` | `false` |
 | `COSYVOICE_MAX_TEXT_CHARACTERS` | `2000` |
 | `COSYVOICE_MAX_CONCURRENCY` | `1` |
 | `COSYVOICE_MAX_QUEUE_SIZE` | `16` |
@@ -60,6 +73,12 @@ Useful settings:
 
 Use exactly one Uvicorn worker. Multiple workers load multiple copies of the
 model and duplicate GPU memory.
+
+Binding to a non-loopback address without `COSYVOICE_API_KEY` is rejected.
+`COSYVOICE_ALLOW_UNAUTHENTICATED=true` is an explicit escape hatch for a
+trusted, isolated environment; it should not be used for an external service.
+Put public deployments behind an HTTPS gateway that enforces request-size
+limits, per-key/IP rate limits, connection/response timeouts, and access logs.
 
 ## Synthesize speech
 
@@ -114,7 +133,9 @@ Errors use one stable shape:
 Contract and audio encoding tests do not load the model:
 
 ```bash
+python -m pip install -r api_server/requirements-test.txt
 python -m unittest discover -s api_server/tests -v
+python -m compileall -q api_server
 ```
 
 After starting the real service:
@@ -124,3 +145,7 @@ python -m api_server.smoke_test \
   --api-key replace-with-a-secret \
   --output smoke.wav
 ```
+
+The smoke client validates the content type, mono 16-bit WAV structure, sample
+rate, non-empty/non-silent audio, duration headers, RTF, and clipping ratio
+before saving the result.
