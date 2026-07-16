@@ -16,19 +16,20 @@ def main() -> None:
     parser.add_argument("--model", default="cosyvoice3-0.5b")
     parser.add_argument("--voice", default="default")
     parser.add_argument("--text", default="你好，这是一次接口冒烟测试。")
+    parser.add_argument("--instructions")
     parser.add_argument("--output", type=Path, default=Path("smoke.wav"))
     args = parser.parse_args()
 
-    body = json.dumps(
-        {
-            "model": args.model,
-            "input": args.text,
-            "voice": args.voice,
-            "response_format": "wav",
-            "speed": 1.0,
-        },
-        ensure_ascii=False,
-    ).encode("utf-8")
+    payload = {
+        "model": args.model,
+        "input": args.text,
+        "voice": args.voice,
+        "response_format": "wav",
+        "speed": 1.0,
+    }
+    if args.instructions:
+        payload["instructions"] = args.instructions
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if args.api_key:
         headers["Authorization"] = f"Bearer {args.api_key}"
@@ -42,7 +43,9 @@ def main() -> None:
     started = time.perf_counter()
     with urllib.request.urlopen(request, timeout=900) as response:
         content = response.read()
-        response_headers = dict(response.headers.items())
+        request_id = response.headers.get("X-Request-ID")
+        audio_duration = response.headers.get("X-Audio-Duration")
+        rtf = response.headers.get("X-Real-Time-Factor")
     elapsed = time.perf_counter() - started
     args.output.write_bytes(content)
     print(
@@ -51,9 +54,9 @@ def main() -> None:
                 "output": str(args.output),
                 "bytes": len(content),
                 "client_elapsed_seconds": round(elapsed, 3),
-                "request_id": response_headers.get("X-Request-ID"),
-                "audio_duration": response_headers.get("X-Audio-Duration"),
-                "rtf": response_headers.get("X-Real-Time-Factor"),
+                "request_id": request_id,
+                "audio_duration": audio_duration,
+                "rtf": rtf,
             },
             ensure_ascii=False,
             indent=2,
