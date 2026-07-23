@@ -93,17 +93,9 @@ vim /SharedData/yangyu/cosyvoice_vllm_api.env
 文件内容：
 
 ```dotenv
-COSYVOICE_LOAD_VLLM=true
-COSYVOICE_HOST=127.0.0.1
+COSYVOICE_MODEL_DIR=/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B
 COSYVOICE_PORT=8011
 COSYVOICE_API_KEY=替换成真实密钥
-COSYVOICE_MAX_TEXT_CHARACTERS=2000
-COSYVOICE_MAX_CONCURRENCY=1
-COSYVOICE_MAX_QUEUE_SIZE=16
-COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
-COSYVOICE_DEFAULT_SEED=2
-COSYVOICE_QUALITY_CHECK_ENABLED=true
-COSYVOICE_QUALITY_MAX_RETRIES=2
 ```
 
 `--env-file` 只会在创建容器时读取变量，不会把该文件挂载进容器。因此，在 `cosyvoice_api_vllm_yy` 容器内部找不到 `/SharedData/yangyu/cosyvoice_vllm_api.env` 是正常现象。
@@ -116,7 +108,7 @@ COSYVOICE_QUALITY_MAX_RETRIES=2
 --env-file /SharedData/yangyu/cosyvoice_vllm_api.env
 ```
 
-服务端所需的全部变量会在窗口 A 使用 `docker exec -e` 传入。
+模型目录、端口和 API Key 会在窗口 A 使用 `docker exec -e` 传入。vLLM 镜像已经默认设置 `COSYVOICE_LOAD_VLLM=true` 和真实模型验证过的默认 seed `0`，其余参数使用 `api_server/config.py` 中的保守默认值。
 
 不要把 API Key 写进 `api_server/voices.json`。该文件只负责配置音色，可能被提交到 Git，而且当前服务不会把它当成鉴权配置读取。
 
@@ -185,25 +177,19 @@ read -rsp "请输入 API Key: " COSYVOICE_API_KEY
 echo
 ```
 
-然后在启动服务时直接传入全部配置：
+然后在启动服务时只传入模型目录、端口和 API Key：
 
 ```bash
 docker exec -it \
-  -e COSYVOICE_LOAD_VLLM=true \
-  -e COSYVOICE_HOST=127.0.0.1 \
+  -e COSYVOICE_MODEL_DIR=/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B \
   -e COSYVOICE_PORT=8011 \
   -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
-  -e COSYVOICE_MAX_TEXT_CHARACTERS=2000 \
-  -e COSYVOICE_MAX_CONCURRENCY=1 \
-  -e COSYVOICE_MAX_QUEUE_SIZE=16 \
-  -e COSYVOICE_REQUEST_TIMEOUT_SECONDS=600 \
-  -e COSYVOICE_DEFAULT_SEED=2 \
-  -e COSYVOICE_QUALITY_CHECK_ENABLED=true \
-  -e COSYVOICE_QUALITY_MAX_RETRIES=2 \
   cosyvoice_api_vllm_yy \
   /opt/conda/envs/cosyvoice/bin/python \
   -m api_server.main
 ```
+
+这个 vLLM 镜像只需要显式指定上面三个参数。监听地址默认是 `127.0.0.1`；文本长度、并发、队列、超时和质量检查使用代码默认值；vLLM 镜像使用已验证的默认 seed `0`。
 
 这就是 CosyVoice 场景中“启动 vLLM 服务”的正确命令，但它不是通用的 `vllm serve`。CosyVoice 只把 LLM/语音 token 阶段交给嵌入式 vLLM V1 Engine；Flow、DiT、Vocoder 和 `/v1/audio/speech` 仍由同一个 CosyVoice 进程负责。单独执行 `vllm serve` 无法生成最终语音。
 

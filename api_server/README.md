@@ -146,17 +146,9 @@ vim /SharedData/yangyu/cosyvoice_vllm_api.env
 Put the following values in the file, replacing the API key placeholder:
 
 ```dotenv
-COSYVOICE_LOAD_VLLM=true
-COSYVOICE_HOST=127.0.0.1
+COSYVOICE_MODEL_DIR=/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B
 COSYVOICE_PORT=8011
 COSYVOICE_API_KEY=replace-with-a-secret
-COSYVOICE_MAX_TEXT_CHARACTERS=2000
-COSYVOICE_MAX_CONCURRENCY=1
-COSYVOICE_MAX_QUEUE_SIZE=16
-COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
-COSYVOICE_DEFAULT_SEED=2
-COSYVOICE_QUALITY_CHECK_ENABLED=true
-COSYVOICE_QUALITY_MAX_RETRIES=2
 ```
 
 `--env-file` reads these values while creating the container; it does not
@@ -173,10 +165,12 @@ from the `docker create` command below:
 --env-file /SharedData/yangyu/cosyvoice_vllm_api.env
 ```
 
-All service settings, including the API key, will instead be passed to
-`docker exec` in shell A. Do not store API keys in `api_server/voices.json`:
-that file is the voice registry, may be committed to Git, and is not an
-authentication configuration file.
+The model directory, port, and API key will instead be passed to `docker exec`
+in shell A. The vLLM image sets `COSYVOICE_LOAD_VLLM=true` and the
+real-model-tested default seed `0`; all other service settings use the
+conservative defaults from `api_server/config.py`. Do not store API keys in
+`api_server/voices.json`: that file is the voice registry, may be committed
+to Git, and is not an authentication configuration file.
 
 The remaining steps deliberately separate image construction, container
 creation, container startup, and API-process startup. A stopped container
@@ -244,25 +238,22 @@ read -rsp "API Key: " COSYVOICE_API_KEY
 echo
 ```
 
-Then pass all service settings directly to the new process:
+Then pass only the model directory, port, and API key to the new process:
 
 ```bash
 docker exec -it \
-  -e COSYVOICE_LOAD_VLLM=true \
-  -e COSYVOICE_HOST=127.0.0.1 \
+  -e COSYVOICE_MODEL_DIR=/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B \
   -e COSYVOICE_PORT=8011 \
   -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
-  -e COSYVOICE_MAX_TEXT_CHARACTERS=2000 \
-  -e COSYVOICE_MAX_CONCURRENCY=1 \
-  -e COSYVOICE_MAX_QUEUE_SIZE=16 \
-  -e COSYVOICE_REQUEST_TIMEOUT_SECONDS=600 \
-  -e COSYVOICE_DEFAULT_SEED=2 \
-  -e COSYVOICE_QUALITY_CHECK_ENABLED=true \
-  -e COSYVOICE_QUALITY_MAX_RETRIES=2 \
   cosyvoice_api_vllm_yy \
   /opt/conda/envs/cosyvoice/bin/python \
   -m api_server.main
 ```
+
+The three explicit settings are the only ones required for this image.
+`COSYVOICE_HOST` defaults to `127.0.0.1`; text length, concurrency, queue,
+timeout, and quality-check settings retain their documented defaults. The
+vLLM image uses the tested default seed `0`.
 
 This is the CosyVoice equivalent of the requested "vLLM serve" window.
 Do not replace it with the generic `vllm serve` command: CosyVoice uses vLLM
