@@ -138,10 +138,34 @@ quality guard can be disabled for diagnostics with
 The built-in `default` voice is configured from `asset/zero_shot_prompt.wav`.
 Clients never submit server-side paths. Add server-owned voices in
 `api_server/voices.json`; zero-shot prompt features are cached once at model
-startup for ordinary synthesis.
+startup for ordinary synthesis. `prompt_text` must contain the exact spoken
+transcript of `prompt_audio` after the CosyVoice3 system prefix, including
+punctuation. Restart the API after changing either value. To verify speaker
+identity first, send a request without `instructions`, because dialect and
+emotion instructions intentionally alter delivery.
+
+Use a clear, single-speaker reference without music or long silence. A very
+quiet reference can produce mostly silent output. This one-line command trims
+leading/trailing silence, normalizes loudness, and writes a 16 kHz mono PCM WAV:
+
+```bash
+ffmpeg -y -i asset/my_prompt.wav -af "silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,areverse,loudnorm=I=-24:LRA=7:TP=-3" -ar 16000 -ac 1 -c:a pcm_s16le asset/my_prompt_clean.wav
+```
 
 PCM responses are mono signed 16-bit little-endian at the model-native 24 kHz
 sample rate. WAV responses contain the same samples with a complete WAV header.
+On a headless server, convert raw PCM to WAV and play or download the WAV:
+
+```bash
+ffmpeg -y -f s16le -ar 24000 -ac 1 -i result.pcm result_pcm.wav
+```
+
+On a machine with an audio device, PCM can also be played without an SDL video
+window:
+
+```bash
+ffplay -nodisp -autoexit -f s16le -ar 24000 -ac 1 result.pcm
+```
 
 ## Errors
 

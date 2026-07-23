@@ -153,10 +153,16 @@ CosyVoice 的语音 token 生成包含随机采样。不传 `seed` 时，服务�
 curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"这是 PCM 输出测试。","voice":"default","response_format":"pcm"}' --output result.pcm
 ```
 
-PCM 格式为单声道、有符号 16-bit little-endian、模型原生采样率。24 kHz 模型可以这样播放：
+PCM 格式为单声道、有符号 16-bit little-endian、模型原生采样率。服务器或 Docker 容器没有图形、声卡设备时，`ffplay` 会报 `XDG_RUNTIME_DIR`、SDL 或音频设备错误；这不表示 PCM 损坏。此时先把 24 kHz PCM 转成 WAV，再下载到本机播放：
 
 ```bash
-ffplay -f s16le -ar 24000 -ac 1 result.pcm
+ffmpeg -y -f s16le -ar 24000 -ac 1 -i result.pcm result_pcm.wav
+```
+
+如果当前机器有可用的音频设备，可以关闭 ffplay 的视频窗口直接播放：
+
+```bash
+ffplay -nodisp -autoexit -f s16le -ar 24000 -ac 1 result.pcm
 ```
 
 ### 3.5 Python 客户端示例
@@ -237,9 +243,17 @@ print("rtf:", response.headers.get("X-Real-Time-Factor"))
 要求：
 
 - `prompt_audio` 必须是仓库目录内的服务端文件；
-- `prompt_text` 必须与参考音频内容一致；
+- `prompt_text` 在 CosyVoice3 系统前缀之后的部分，必须与参考音频实际说出的文字逐字一致，包括标点；
 - 音色 ID 只能包含字母、数字、下划线、点和短横线；
-- 服务启动时会预处理并缓存 zero-shot speaker，普通请求不会重复处理参考音频。
+- 服务启动时会预处理并缓存 zero-shot speaker，普通请求不会重复处理参考音频；
+- 修改 `prompt_text` 或 `prompt_audio` 后必须重启 API，否则进程仍会使用旧缓存；
+- 首次核对音色时不要传 `instructions`，先排除方言、情绪等风格控制对听感的影响。
+
+参考音频应为单人、清晰、无背景音乐且没有过长静音。音量过低可能使生成结果大段静音。可以用下面的单行命令去除首尾静音、标准化响度，并转换为 16 kHz 单声道 PCM WAV：
+
+```bash
+ffmpeg -y -i asset/my_prompt.wav -af "silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,areverse,loudnorm=I=-24:LRA=7:TP=-3" -ar 16000 -ac 1 -c:a pcm_s16le asset/my_prompt_clean.wav
+```
 
 ### 5.2 SFT 音色
 
