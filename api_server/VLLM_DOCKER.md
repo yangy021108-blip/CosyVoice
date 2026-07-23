@@ -97,9 +97,13 @@ COSYVOICE_LOAD_VLLM=true
 COSYVOICE_HOST=127.0.0.1
 COSYVOICE_PORT=8011
 COSYVOICE_API_KEY=替换成真实密钥
+COSYVOICE_MAX_TEXT_CHARACTERS=2000
 COSYVOICE_MAX_CONCURRENCY=1
 COSYVOICE_MAX_QUEUE_SIZE=16
 COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
+COSYVOICE_DEFAULT_SEED=2
+COSYVOICE_QUALITY_CHECK_ENABLED=true
+COSYVOICE_QUALITY_MAX_RETRIES=2
 ```
 
 `--env-file` 只会在创建容器时读取变量，不会把该文件挂载进容器。因此，在 `cosyvoice_api_vllm_yy` 容器内部找不到 `/SharedData/yangyu/cosyvoice_vllm_api.env` 是正常现象。
@@ -189,9 +193,13 @@ docker exec -it \
   -e COSYVOICE_HOST=127.0.0.1 \
   -e COSYVOICE_PORT=8011 \
   -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
+  -e COSYVOICE_MAX_TEXT_CHARACTERS=2000 \
   -e COSYVOICE_MAX_CONCURRENCY=1 \
   -e COSYVOICE_MAX_QUEUE_SIZE=16 \
   -e COSYVOICE_REQUEST_TIMEOUT_SECONDS=600 \
+  -e COSYVOICE_DEFAULT_SEED=2 \
+  -e COSYVOICE_QUALITY_CHECK_ENABLED=true \
+  -e COSYVOICE_QUALITY_MAX_RETRIES=2 \
   cosyvoice_api_vllm_yy \
   /opt/conda/envs/cosyvoice/bin/python \
   -m api_server.main
@@ -278,6 +286,8 @@ ASR 将英文缩写 `vLLM` 听写为 `VLM`，其余文本与输入一致。
 拆分后的生命周期也已经真实验证：单独执行 `docker start` 时只有容器运行，执行 `docker exec` 后 API 才就绪；窗口 B 成功生成了 24 kHz、单声道、PCM16 WAV；执行 `docker stop` 后，再次按 `docker start`、`docker exec` 的顺序可以恢复服务。
 
 方式 B 也使用一个没有环境文件、没有持久化 API Key 的容器完成了真实验证：不带密钥请求返回 HTTP 401，通过 `docker exec -e` 指定的密钥可以鉴权并完成语音推理，生成 24 kHz、单声道、PCM16 WAV。
+
+vLLM backend 现在会把请求中的 seed 传入 `SamplingParams`。真实模型测试中，相同中英文混合文本使用相同 seed 连续生成两次，得到的 WAV 字节完全一致。质量门禁也会按实际发音估算 `CosyVoice`、`vLLM`、`API` 等英文单词和缩写，不再将正常短句误判为音频过长。
 
 ## 7. 停止和再次启动
 

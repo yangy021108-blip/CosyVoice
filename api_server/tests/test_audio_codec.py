@@ -81,6 +81,16 @@ class AudioCodecTest(unittest.TestCase):
         self.assertFalse(quality.acceptable)
         self.assertEqual(quality.reason, "too_long_for_text")
 
+    def test_quality_analysis_allows_spoken_mixed_case_and_acronyms(self) -> None:
+        waveform = np.full(24000 * 6, 0.2, dtype=np.float32)
+        quality = analyze_audio_quality(
+            waveform,
+            "你好，这是 CosyVoice vLLM API 测试。",
+            sample_rate=24000,
+        )
+        self.assertTrue(quality.acceptable)
+        self.assertEqual(quality.reason, "ok")
+
     def test_quality_duration_limit_accounts_for_requested_speed(self) -> None:
         waveform = np.full(24000 * 8, 0.2, dtype=np.float32)
         quality = analyze_audio_quality(

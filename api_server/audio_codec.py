@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import math
 import re
 import wave
 from collections.abc import Iterable, Mapping
@@ -61,8 +62,28 @@ def _text_unit_count(text: str) -> int:
     """Approximate spoken units across CJK text and space-delimited words."""
 
     cjk_count = len(_CJK_CHARACTER.findall(text))
-    latin_word_count = len(_LATIN_WORD.findall(text))
-    return max(1, cjk_count + latin_word_count)
+    latin_unit_count = sum(
+        _latin_spoken_unit_count(word) for word in _LATIN_WORD.findall(text)
+    )
+    return max(1, cjk_count + latin_unit_count)
+
+
+def _latin_spoken_unit_count(word: str) -> int:
+    """Estimate duration units for words, acronyms, and mixed-case names."""
+
+    alphanumeric = "".join(
+        character for character in word if character.isalnum()
+    )
+    if not alphanumeric:
+        return 0
+    letters = [character for character in alphanumeric if character.isalpha()]
+    uppercase_count = sum(character.isupper() for character in letters)
+    if letters and uppercase_count / len(letters) >= 0.5:
+        # Acronyms such as API and vLLM are commonly spoken letter by letter.
+        return len(alphanumeric)
+    # Ordinary and CamelCase words need more allowance than a single CJK
+    # character. Four Latin characters per unit is deliberately conservative.
+    return max(1, math.ceil(len(alphanumeric) / 4))
 
 
 def analyze_audio_quality(

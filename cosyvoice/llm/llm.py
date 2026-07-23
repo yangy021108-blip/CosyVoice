@@ -12,7 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os, queue
+import os
+import queue
 import random
 import time
 import threading
@@ -296,10 +297,27 @@ class Qwen2LM(TransformerLM):
         # 5. vllm related
         self.stop_token_ids = [speech_token_size + i for i in range(3)]
         self.vllm_output_queue = {}
+        self.inference_seed = None
         if online_feature is True:
             self.speech_token_extractor = SpeechTokenExtractor(model_path=os.path.join(onnx_path, 'speech_tokenizer_v2.batch.onnx'))
 
-    def prepare_lm_input_target(self, sos_emb, text_token, text_token_emb, text_token_len, task_id_emb, speech_token, speech_token_emb, speech_token_len, instruct_token=None, instruct_token_emb=None, instruct_token_len=None):
+    def set_inference_seed(self, seed: int) -> None:
+        self.inference_seed = seed
+
+    def prepare_lm_input_target(
+            self,
+            sos_emb,
+            text_token,
+            text_token_emb,
+            text_token_len,
+            task_id_emb,
+            speech_token,
+            speech_token_emb,
+            speech_token_len,
+            instruct_token=None,
+            instruct_token_emb=None,
+            instruct_token_len=None,
+    ):
         lm_target, lm_input = [], []
         text_token = unpad_sequence(text_token, text_token_len.cpu(), batch_first=True)
         speech_token = unpad_sequence(speech_token, speech_token_len.cpu(), batch_first=True)
@@ -388,8 +406,11 @@ class Qwen2LM(TransformerLM):
             instruct_token = batch['instruct_token'].to(device)
             instruct_token_len = batch['instruct_token_len'].to(device)
             instruct_token_emb = self.llm.model.model.embed_tokens(instruct_token)
-            lm_target, lm_input, lm_input_len = self.prepare_lm_input_target(sos_emb, text_token, text_token_emb, text_token_len, task_id_emb,
-                                                                             speech_token, speech_token_emb, speech_token_len, instruct_token, instruct_token_emb, instruct_token_len)
+            lm_target, lm_input, lm_input_len = self.prepare_lm_input_target(
+                sos_emb, text_token, text_token_emb, text_token_len, task_id_emb,
+                speech_token, speech_token_emb, speech_token_len,
+                instruct_token, instruct_token_emb, instruct_token_len
+            )
         elif self.__class__.__name__ == 'Qwen2LM':
             lm_target, lm_input, lm_input_len = self.prepare_lm_input_target(sos_emb, text_token, text_token_emb, text_token_len, task_id_emb,
                                                                              speech_token, speech_token_emb, speech_token_len)
@@ -508,7 +529,8 @@ class Qwen2LM(TransformerLM):
             sampling_params = SamplingParams(top_k=sampling,
                                              stop_token_ids=self.stop_token_ids,
                                              min_tokens=min_len,
-                                             max_tokens=max_len)
+                                             max_tokens=max_len,
+                                             seed=self.inference_seed)
             with self.lock:
                 self.vllm.add_request(uuid, {"prompt_embeds": lm_input.squeeze(0).to(torch.bfloat16).to(lm_input.device)}, sampling_params)
                 self.vllm_output_queue[uuid] = queue.Queue()
@@ -702,5 +724,6 @@ class CosyVoice3LM(Qwen2LM):
         # 5. vllm related
         self.stop_token_ids = [speech_token_size + i for i in range(200)]
         self.vllm_output_queue = {}
+        self.inference_seed = None
         if online_feature is True:
             self.speech_token_extractor = SpeechTokenExtractor(model_path=os.path.join(onnx_path, 'speech_tokenizer_v3.batch.onnx'))

@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -98,6 +99,15 @@ class RecordingBackend:
 
     def inference_sft(self, **kwargs):
         return self._result("inference_sft", kwargs)
+
+
+class SeedAwareBackend(RecordingBackend):
+    def __init__(self) -> None:
+        super().__init__()
+        self.inference_seeds: list[int] = []
+        self.model = SimpleNamespace(
+            llm=SimpleNamespace(set_inference_seed=self.inference_seeds.append)
+        )
 
 
 def request(**overrides) -> SpeechRequest:
@@ -199,6 +209,25 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(seeds, [99])
         self.assertEqual(result.seed, 99)
         self.assertEqual(result.quality_retry_count, 0)
+
+    def test_seed_is_forwarded_to_vllm_backend(self) -> None:
+        store = make_store()
+        backend = SeedAwareBackend()
+        settings = replace(make_settings(), load_vllm=True)
+        engine = CosyVoiceEngine(
+            settings,
+            store,
+            backend_factory=lambda: backend,
+            seed_setter=lambda seed: None,
+        )
+        engine.load()
+
+        engine.synthesize(
+            request(input="欢迎使用我们的语音合成服务。", seed=99),
+            store.get("default"),
+        )
+
+        self.assertEqual(backend.inference_seeds, [99])
 
     def test_exhausted_quality_retries_raise_instead_of_returning_noise(self):
         store = make_store()

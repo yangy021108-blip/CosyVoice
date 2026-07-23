@@ -235,15 +235,23 @@ class CosyVoiceEngine:
     def _set_random_seed(self, seed: int) -> None:
         if self._seed_setter is not None:
             self._seed_setter(seed)
-            return
-        random.seed(seed)
-        np.random.seed(seed)
-        try:
-            import torch
-        except ModuleNotFoundError:
-            return
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
+        else:
+            random.seed(seed)
+            np.random.seed(seed)
+            try:
+                import torch
+            except ModuleNotFoundError:
+                pass
+            else:
+                torch.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed)
+
+        if self.settings.load_vllm and self.backend is not None:
+            model = getattr(self.backend, "model", None)
+            llm = getattr(model, "llm", None)
+            seed_setter = getattr(llm, "set_inference_seed", None)
+            if callable(seed_setter):
+                seed_setter(seed)
 
     def _dispatch(self, request: SpeechRequest, voice: VoiceSpec):
         common = {

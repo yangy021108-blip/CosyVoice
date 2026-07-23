@@ -150,9 +150,13 @@ COSYVOICE_LOAD_VLLM=true
 COSYVOICE_HOST=127.0.0.1
 COSYVOICE_PORT=8011
 COSYVOICE_API_KEY=replace-with-a-secret
+COSYVOICE_MAX_TEXT_CHARACTERS=2000
 COSYVOICE_MAX_CONCURRENCY=1
 COSYVOICE_MAX_QUEUE_SIZE=16
 COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
+COSYVOICE_DEFAULT_SEED=2
+COSYVOICE_QUALITY_CHECK_ENABLED=true
+COSYVOICE_QUALITY_MAX_RETRIES=2
 ```
 
 `--env-file` reads these values while creating the container; it does not
@@ -248,9 +252,13 @@ docker exec -it \
   -e COSYVOICE_HOST=127.0.0.1 \
   -e COSYVOICE_PORT=8011 \
   -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
+  -e COSYVOICE_MAX_TEXT_CHARACTERS=2000 \
   -e COSYVOICE_MAX_CONCURRENCY=1 \
   -e COSYVOICE_MAX_QUEUE_SIZE=16 \
   -e COSYVOICE_REQUEST_TIMEOUT_SECONDS=600 \
+  -e COSYVOICE_DEFAULT_SEED=2 \
+  -e COSYVOICE_QUALITY_CHECK_ENABLED=true \
+  -e COSYVOICE_QUALITY_MAX_RETRIES=2 \
   cosyvoice_api_vllm_yy \
   /opt/conda/envs/cosyvoice/bin/python \
   -m api_server.main
@@ -327,6 +335,11 @@ after `docker stop`. Mode B was tested with a container that had no
 environment file or persistent API key: an unauthenticated request returned
 HTTP 401, while the key passed to `docker exec -e` authorized a real
 synthesis request.
+
+The vLLM path forwards the request seed to `SamplingParams`. Repeating the
+same mixed Chinese/English request with the same seed produced byte-identical
+WAV files in the real-model test. The quality guard also accounts for spoken
+Latin words and acronyms such as `CosyVoice`, `vLLM`, and `API`.
 
 To stop only the API process, press `Ctrl+C` in shell A. The persistent
 container remains running. To stop it as well:
