@@ -151,8 +151,12 @@ COSYVOICE_MAX_QUEUE_SIZE=16
 COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
 ```
 
+The remaining steps deliberately separate image construction, container
+creation, container startup, and API-process startup. A stopped container
+cannot accept `docker exec`; always run `docker start` before `docker exec`.
+
 Check whether an older test container exists. Remove it only when it appears
-in the first command:
+in the first command. Container creation is a one-time operation:
 
 ```bash
 docker ps -a --filter name=cosyvoice_api_vllm_yy
@@ -165,12 +169,11 @@ Prepare the persistent cache:
 mkdir -p /SharedData/yangyu/cosyvoice_vllm_cache
 ```
 
-Start the vLLM service on physical GPU 6 and host port 8011. This is one
-`docker run` command formatted across multiple lines so each option can be
-entered and checked separately:
+Create a persistent container on physical GPU 6. The final `sleep infinity`
+keeps only the container alive; it does not start the API service:
 
 ```bash
-docker run -d \
+docker create \
   --name cosyvoice_api_vllm_yy \
   --runtime nvidia \
   -e NVIDIA_VISIBLE_DEVICES=6 \
@@ -180,18 +183,37 @@ docker run -d \
   -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
   -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice:ro \
   -v /SharedData/yangyu/cosyvoice_vllm_cache:/root/.cache \
-  cosyvoice-api:vllm-test
+  cosyvoice-api:vllm-test \
+  sleep infinity
 ```
 
-The first startup exports vLLM weights, runs `torch.compile`, and captures
-CUDA Graphs. Follow the log until both `Initializing a V1 LLM engine
-(v0.11.0)` and `Uvicorn running on http://127.0.0.1:8011` appear:
+The environment-file values are copied into the container configuration at
+creation time. Recreate the container after changing those values.
+
+Start the container. Run the same command after a host reboot or after
+`docker stop`:
 
 ```bash
-docker logs -f cosyvoice_api_vllm_yy
+docker start cosyvoice_api_vllm_yy
 ```
 
-From another shell, check readiness and authenticated model discovery:
+In shell A, start the CosyVoice API process in the foreground:
+
+```bash
+docker exec -it cosyvoice_api_vllm_yy \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -m api_server.main
+```
+
+This is the CosyVoice equivalent of the requested "vLLM serve" window.
+Do not replace it with the generic `vllm serve` command: CosyVoice uses vLLM
+only for its LLM/speech-token stage, while the same process must also run
+Flow, DiT, the vocoder, and `/v1/audio/speech`. The first service startup
+exports vLLM weights, runs `torch.compile`, and captures CUDA Graphs. Keep
+shell A open until both `Initializing a V1 LLM engine (v0.11.0)` and
+`Uvicorn running on http://127.0.0.1:8011` appear.
+
+In shell B, check readiness and authenticated model discovery:
 
 ```bash
 curl --fail http://127.0.0.1:8011/health
@@ -230,6 +252,33 @@ The tested request returned HTTP 200, a 24 kHz mono PCM16 WAV, 6.08 seconds
 of audio, RTF 0.2599, and zero clipped samples. An independent ASR check
 matched the requested sentence (apart from spelling the spoken `vLLM`
 abbreviation as `VLM`).
+
+The separated lifecycle was also tested: `docker start` brought up only the
+idle container, `docker exec` made the API ready, shell B generated a valid
+24 kHz mono PCM16 WAV, and the same start/exec sequence restored the service
+after `docker stop`.
+
+To stop only the API process, press `Ctrl+C` in shell A. The persistent
+container remains running. To stop it as well:
+
+```bash
+docker stop cosyvoice_api_vllm_yy
+```
+
+To use it again, first start the container, then repeat the `docker exec`
+command in shell A:
+
+```bash
+docker start cosyvoice_api_vllm_yy
+```
+
+Then, in shell A:
+
+```bash
+docker exec -it cosyvoice_api_vllm_yy \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -m api_server.main
+```
 
 Useful settings:
 
