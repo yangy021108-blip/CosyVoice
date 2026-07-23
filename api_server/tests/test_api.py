@@ -74,6 +74,9 @@ class FakeEngine:
             duration_seconds=0.1,
             inference_seconds=0.02,
             real_time_factor=0.2,
+            seed=2,
+            quality_retry_count=1,
+            silent_frame_ratio=0.1,
         )
 
 
@@ -93,6 +96,14 @@ class BlockingEngine(FakeEngine):
 class RaisingEngine(FakeEngine):
     def synthesize(self, payload, voice) -> AudioResult:
         raise RuntimeError("backend failed")
+
+
+class QualityFailingEngine(FakeEngine):
+    def synthesize(self, payload, voice) -> AudioResult:
+        del payload, voice
+        from api_server.engine import AudioQualityError
+
+        raise AudioQualityError("generated audio was degenerate")
 
 
 def make_store() -> VoiceStore:
@@ -190,6 +201,9 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(response.headers["content-type"].startswith("audio/wav"))
         self.assertEqual(response.headers["x-audio-sample-rate"], "24000")
         self.assertIn("x-request-id", response.headers)
+        self.assertEqual(response.headers["x-generation-seed"], "2")
+        self.assertEqual(response.headers["x-quality-retry-count"], "1")
+        self.assertEqual(response.headers["x-silent-frame-ratio"], "0.100000")
         with wave.open(io.BytesIO(response.content), "rb") as wav_file:
             self.assertEqual(wav_file.getframerate(), 24000)
             self.assertGreater(wav_file.getnframes(), 0)
@@ -225,6 +239,8 @@ class ApiTest(unittest.TestCase):
             ({"speed": 3.0}, 400, "invalid_parameter"),
             ({"pitch": 1.2}, 400, "invalid_parameter"),
             ({"stream_format": "audio"}, 400, "invalid_parameter"),
+            ({"seed": -1}, 400, "invalid_parameter"),
+            ({"seed": 2**32}, 400, "invalid_parameter"),
         ]
         with self.make_client() as client:
             for overrides, status, code in cases:
@@ -277,6 +293,19 @@ class ApiTest(unittest.TestCase):
                 )
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json()["error"]["code"], "internal_error")
+
+    def test_quality_failure_maps_to_retryable_503(self) -> None:
+        store = make_store()
+        with self.make_client(
+            store=store, engine=QualityFailingEngine(store)
+        ) as client:
+            response = client.post(
+                "/v1/audio/speech", json=self.request_body()
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json()["error"]["code"], "audio_quality_failed"
+        )
 
     def test_concurrency_and_queue_limit_rejects_third_request(self) -> None:
         store = make_store()

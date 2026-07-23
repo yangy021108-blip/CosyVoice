@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
+import logging
+import random
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from importlib.util import find_spec
 from typing import Callable
 
-from api_server.audio_codec import collect_waveform, encode_wav, float_to_pcm16
+import numpy as np
+
+from api_server.audio_codec import (
+    AudioQuality,
+    analyze_audio_quality,
+    collect_waveform,
+    encode_wav,
+    float_to_pcm16,
+)
 from api_server.config import Settings
 from api_server.schemas import SpeechRequest
 from api_server.voice_store import VoiceSpec, VoiceStore
+
+
+LOGGER = logging.getLogger("cosyvoice.api.quality")
 
 
 @dataclass(frozen=True)
@@ -22,6 +36,13 @@ class AudioResult:
     duration_seconds: float
     inference_seconds: float
     real_time_factor: float
+    seed: int | None = None
+    quality_retry_count: int = 0
+    silent_frame_ratio: float | None = None
+
+
+class AudioQualityError(RuntimeError):
+    """Raised when every generated candidate is clearly degenerate."""
 
 
 class CosyVoiceEngine:
@@ -32,10 +53,13 @@ class CosyVoiceEngine:
         settings: Settings,
         voice_store: VoiceStore,
         backend_factory: Callable[[], object] | None = None,
+        seed_setter: Callable[[int], None] | None = None,
     ) -> None:
         self.settings = settings
         self.voice_store = voice_store
         self._backend_factory = backend_factory
+        self._seed_setter = seed_setter
+        self._inference_lock = threading.Lock()
         self.backend = None
         self.sample_rate: int | None = None
         self.load_error: str | None = None
@@ -99,8 +123,10 @@ class CosyVoiceEngine:
             raise ValueError(f"unknown model: {request.model}")
 
         started = time.perf_counter()
-        outputs = self._dispatch(request, voice)
-        waveform = collect_waveform(outputs)
+        with self._inference_lock:
+            waveform, seed, retry_count, quality = self._generate_candidate(
+                request, voice
+            )
         inference_seconds = time.perf_counter() - started
         pcm = float_to_pcm16(waveform)
         duration_seconds = len(pcm) / int(self.sample_rate)
@@ -122,7 +148,67 @@ class CosyVoiceEngine:
             duration_seconds=duration_seconds,
             inference_seconds=inference_seconds,
             real_time_factor=real_time_factor,
+            seed=seed,
+            quality_retry_count=retry_count,
+            silent_frame_ratio=quality.silent_frame_ratio,
         )
+
+    def _generate_candidate(
+        self, request: SpeechRequest, voice: VoiceSpec
+    ) -> tuple[np.ndarray, int, int, AudioQuality]:
+        base_seed = (
+            request.seed
+            if request.seed is not None
+            else self.settings.default_seed
+        )
+        retry_count = (
+            0
+            if request.seed is not None or not self.settings.quality_check_enabled
+            else self.settings.quality_max_retries
+        )
+        last_quality: AudioQuality | None = None
+
+        for attempt in range(retry_count + 1):
+            seed = (base_seed + attempt) % (2**32)
+            self._set_random_seed(seed)
+            waveform = collect_waveform(self._dispatch(request, voice))
+            quality = analyze_audio_quality(
+                waveform,
+                request.input,
+                sample_rate=int(self.sample_rate),
+                speed=request.speed,
+            )
+            last_quality = quality
+            if not self.settings.quality_check_enabled or quality.acceptable:
+                return waveform, seed, attempt, quality
+            LOGGER.warning(
+                "rejected degenerate audio seed=%d attempt=%d reason=%s "
+                "duration=%.3f silent_ratio=%.4f voiced_seconds_per_unit=%.4f",
+                seed,
+                attempt + 1,
+                quality.reason,
+                quality.duration_seconds,
+                quality.silent_frame_ratio,
+                quality.voiced_seconds_per_text_unit,
+            )
+
+        raise AudioQualityError(
+            "CosyVoice generated degenerate audio after "
+            f"{retry_count + 1} attempts; last_reason={last_quality.reason}"
+        )
+
+    def _set_random_seed(self, seed: int) -> None:
+        if self._seed_setter is not None:
+            self._seed_setter(seed)
+            return
+        random.seed(seed)
+        np.random.seed(seed)
+        try:
+            import torch
+        except ModuleNotFoundError:
+            return
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
 
     def _dispatch(self, request: SpeechRequest, voice: VoiceSpec):
         common = {
@@ -135,9 +221,17 @@ class CosyVoiceEngine:
                 raise ValueError(
                     "instructions require a zero-shot voice on CosyVoice3"
                 )
+            user_instruction = " ".join(request.instructions.split())
+            if not user_instruction.endswith(("。", ".", "！", "!", "？", "?")):
+                punctuation = (
+                    "。"
+                    if any("\u3400" <= char <= "\u9fff" for char in user_instruction)
+                    else "."
+                )
+                user_instruction += punctuation
             instruction = (
-                "You are a helpful assistant.\n"
-                f"{request.instructions}<|endofprompt|>"
+                "You are a helpful assistant. "
+                f"{user_instruction}<|endofprompt|>"
             )
             return self.backend.inference_instruct2(
                 tts_text=request.input,

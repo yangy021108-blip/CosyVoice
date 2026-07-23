@@ -139,6 +139,18 @@ curl --fail-with-body http://127.0.0.1:8000/v1/audio/speech \
   --output instructed.wav
 ```
 
+CosyVoice 的语音 token 生成包含随机采样。不传 `seed` 时，服务从经过当前模型验证的默认 seed 开始；如果结果明显过短、相对文本异常长或大部分接近静音，会自动换下一个 seed 重试。README 中的 `result.wav` 和 `instructed.wav` 命令不需要增加新参数。
+
+如果需要严格复现某一次结果，可以显式传入：
+
+```json
+{
+  "seed": 2
+}
+```
+
+显式传入 `seed` 时不会自动换 seed。所有自动尝试都未通过质量检查时，接口返回 503 `audio_quality_failed`，不会把已知退化的音频返回给用户。
+
 给 SFT 音色传入 `instructions` 会返回 400 `unsupported_parameter`，并且不会进入 GPU 队列。
 
 ### 3.4 获取裸 PCM
@@ -203,6 +215,7 @@ print("rtf:", response.headers.get("X-Real-Time-Factor"))
 | `response_format` | 否 | `wav`、`pcm`，默认 `wav` | 音频封装格式 |
 | `speed` | 否 | `0.5` 到 `2.0`，默认 `1.0` | 语速 |
 | `instructions` | 否 | 最多 1000 字符 | 仅 zero-shot 音色可用 |
+| `seed` | 否 | 0 到 4294967295 | 固定语音 token 采样；显式设置时关闭自动换 seed |
 
 成功响应包含以下诊断头：
 
@@ -215,6 +228,9 @@ print("rtf:", response.headers.get("X-Real-Time-Factor"))
 | `X-Queue-Wait-Ms` | 等待 GPU 推理名额的时间 |
 | `X-Inference-Latency-Ms` | 模型推理和音频收集耗时 |
 | `X-Real-Time-Factor` | 推理耗时除以音频时长 |
+| `X-Generation-Seed` | 最终返回音频实际使用的 seed |
+| `X-Quality-Retry-Count` | 质量检查触发的重试次数 |
+| `X-Silent-Frame-Ratio` | 20 ms 帧中低于 -50 dBFS 的比例 |
 
 ## 5. 配置音色
 
@@ -271,6 +287,9 @@ print("rtf:", response.headers.get("X-Real-Time-Factor"))
 | `COSYVOICE_REQUEST_TIMEOUT_SECONDS` | `600` | HTTP 推理超时 |
 | `COSYVOICE_FP16` | `false` | 是否让 backend 使用 FP16 |
 | `COSYVOICE_LOAD_VLLM` | `false` | 是否启用 vLLM backend |
+| `COSYVOICE_DEFAULT_SEED` | `2` | 未传 `seed` 时第一次生成使用的 seed |
+| `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` | 是否拒绝明显退化的音频并自动重试 |
+| `COSYVOICE_QUALITY_MAX_RETRIES` | `2` | 首次生成之后最多再尝试的次数 |
 
 无 API Key 时绑定 `0.0.0.0`、主机名或其他非回环地址会拒绝启动。只有主动设置 `COSYVOICE_ALLOW_UNAUTHENTICATED=true` 才能绕过该保护，不建议在共享内网或公网使用。
 
@@ -293,6 +312,7 @@ COSYVOICE_MAX_CONCURRENCY + COSYVOICE_MAX_QUEUE_SIZE
 | 413 | `input_too_large` | 输入超过长度限制 |
 | 429 | `queue_full` | 推理队列已满 |
 | 503 | `model_not_ready` | 模型加载失败或尚未完成 |
+| 503 | `audio_quality_failed` | 多次生成均被判断为明显退化；可重试请求或指定其他 seed |
 | 504 | `inference_timeout` | HTTP 请求等待推理超时 |
 
 错误响应格式：

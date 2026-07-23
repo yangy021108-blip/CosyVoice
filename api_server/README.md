@@ -72,6 +72,9 @@ Useful settings:
 | `COSYVOICE_MAX_QUEUE_SIZE` | `16` |
 | `COSYVOICE_REQUEST_TIMEOUT_SECONDS` | `600` |
 | `COSYVOICE_FP16` / `COSYVOICE_LOAD_VLLM` | `false` / `false` |
+| `COSYVOICE_DEFAULT_SEED` | `2` |
+| `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` |
+| `COSYVOICE_QUALITY_MAX_RETRIES` | `2` |
 
 Use exactly one Uvicorn worker. Multiple workers load multiple copies of the
 model and duplicate GPU memory.
@@ -105,6 +108,19 @@ Optional style control uses the OpenAI-compatible plural field name:
   "instructions": "请用四川话、开心地说这句话"
 }
 ```
+
+CosyVoice speech-token generation is stochastic. Requests without `seed` start
+from the tested default seed and automatically retry with the next seed when
+the generated audio is obviously too short, too long for the input, or mostly
+silent. Set an unsigned 32-bit `seed` explicitly when exact reproducibility is
+more important than automatic retry. The selected seed, retry count, and
+silence ratio are returned in `X-Generation-Seed`, `X-Quality-Retry-Count`, and
+`X-Silent-Frame-Ratio`.
+
+If all automatic attempts fail the quality guard, the API returns 503 with
+`code=audio_quality_failed` instead of serving known-degenerate audio. The
+quality guard can be disabled for diagnostics with
+`COSYVOICE_QUALITY_CHECK_ENABLED=false`.
 
 The built-in `default` voice is configured from `asset/zero_shot_prompt.wav`.
 Clients never submit server-side paths. Add server-owned voices in

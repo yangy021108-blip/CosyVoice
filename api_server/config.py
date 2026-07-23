@@ -27,6 +27,15 @@ def _env_int(name: str, default: int, minimum: int) -> int:
     return value
 
 
+def _env_int_range(
+    name: str, default: int, minimum: int, maximum: int
+) -> int:
+    value = _env_int(name, default, minimum)
+    if value > maximum:
+        raise ValueError(f"{name} must be <= {maximum}")
+    return value
+
+
 def _is_loopback_host(host: str) -> bool:
     normalized = host.strip().lower().strip("[]")
     if normalized == "localhost":
@@ -55,8 +64,15 @@ class Settings:
     fp16: bool
     load_vllm: bool
     allow_unauthenticated: bool = False
+    default_seed: int = 2
+    quality_check_enabled: bool = True
+    quality_max_retries: int = 2
 
     def __post_init__(self) -> None:
+        if not 0 <= self.default_seed <= 2**32 - 1:
+            raise ValueError("default_seed must be between 0 and 4294967295")
+        if self.quality_max_retries < 0:
+            raise ValueError("quality_max_retries must be >= 0")
         if (
             self.api_key is None
             and not _is_loopback_host(self.host)
@@ -105,5 +121,14 @@ class Settings:
             load_vllm=_env_bool("COSYVOICE_LOAD_VLLM", False),
             allow_unauthenticated=_env_bool(
                 "COSYVOICE_ALLOW_UNAUTHENTICATED", False
+            ),
+            default_seed=_env_int_range(
+                "COSYVOICE_DEFAULT_SEED", 2, 0, 2**32 - 1
+            ),
+            quality_check_enabled=_env_bool(
+                "COSYVOICE_QUALITY_CHECK_ENABLED", True
+            ),
+            quality_max_retries=_env_int(
+                "COSYVOICE_QUALITY_MAX_RETRIES", 2, 0
             ),
         )

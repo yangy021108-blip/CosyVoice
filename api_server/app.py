@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from api_server.config import Settings
-from api_server.engine import CosyVoiceEngine
+from api_server.engine import AudioQualityError, CosyVoiceEngine
 from api_server.errors import ServiceError
 from api_server.schemas import SpeechRequest
 from api_server.voice_store import VoiceStore
@@ -300,15 +300,25 @@ def create_app(
         except BaseException:
             admission.release()
             raise
-        result, queue_wait_ms = await _await_inference_task(
-            inference_task,
-            admission,
-            settings.request_timeout_seconds,
-        )
+        try:
+            result, queue_wait_ms = await _await_inference_task(
+                inference_task,
+                admission,
+                settings.request_timeout_seconds,
+            )
+        except AudioQualityError as exc:
+            raise ServiceError(
+                503,
+                "CosyVoice could not generate acceptable audio; retry the "
+                "request or provide a different seed",
+                code="audio_quality_failed",
+                error_type="server_error",
+            ) from exc
 
         LOGGER.info(
             "request_id=%s model=%s voice=%s chars=%d queue_wait_ms=%.2f "
-            "inference_ms=%.2f audio_ms=%.2f rtf=%.4f",
+            "inference_ms=%.2f audio_ms=%.2f rtf=%.4f seed=%s retries=%d "
+            "silent_ratio=%s",
             _request_id(request),
             payload.model,
             payload.voice,
@@ -317,22 +327,37 @@ def create_app(
             result.inference_seconds * 1000.0,
             result.duration_seconds * 1000.0,
             result.real_time_factor,
+            result.seed,
+            result.quality_retry_count,
+            (
+                "n/a"
+                if result.silent_frame_ratio is None
+                else f"{result.silent_frame_ratio:.4f}"
+            ),
         )
         suffix = "wav" if payload.response_format == "wav" else "pcm"
+        response_headers = {
+            "Content-Disposition": f'attachment; filename="speech.{suffix}"',
+            "X-Audio-Sample-Rate": str(result.sample_rate),
+            "X-Audio-Channels": "1",
+            "X-Audio-Duration": f"{result.duration_seconds:.6f}",
+            "X-Queue-Wait-Ms": f"{queue_wait_ms:.3f}",
+            "X-Inference-Latency-Ms": (
+                f"{result.inference_seconds * 1000.0:.3f}"
+            ),
+            "X-Real-Time-Factor": f"{result.real_time_factor:.6f}",
+            "X-Quality-Retry-Count": str(result.quality_retry_count),
+        }
+        if result.seed is not None:
+            response_headers["X-Generation-Seed"] = str(result.seed)
+        if result.silent_frame_ratio is not None:
+            response_headers["X-Silent-Frame-Ratio"] = (
+                f"{result.silent_frame_ratio:.6f}"
+            )
         return Response(
             content=result.content,
             media_type=result.media_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="speech.{suffix}"',
-                "X-Audio-Sample-Rate": str(result.sample_rate),
-                "X-Audio-Channels": "1",
-                "X-Audio-Duration": f"{result.duration_seconds:.6f}",
-                "X-Queue-Wait-Ms": f"{queue_wait_ms:.3f}",
-                "X-Inference-Latency-Ms": (
-                    f"{result.inference_seconds * 1000.0:.3f}"
-                ),
-                "X-Real-Time-Factor": f"{result.real_time_factor:.6f}",
-            },
+            headers=response_headers,
         )
 
     return app

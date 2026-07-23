@@ -13,6 +13,9 @@ class SettingsTest(unittest.TestCase):
             settings = Settings.from_env()
         self.assertEqual(settings.host, "127.0.0.1")
         self.assertIsNone(settings.api_key)
+        self.assertEqual(settings.default_seed, 2)
+        self.assertTrue(settings.quality_check_enabled)
+        self.assertEqual(settings.quality_max_retries, 2)
 
     def test_non_loopback_binding_without_auth_is_rejected(self) -> None:
         with patch.dict(
@@ -47,6 +50,30 @@ class SettingsTest(unittest.TestCase):
         ):
             settings = Settings.from_env()
         self.assertTrue(settings.allow_unauthenticated)
+
+    def test_quality_settings_are_read_from_environment(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "COSYVOICE_DEFAULT_SEED": "17",
+                "COSYVOICE_QUALITY_CHECK_ENABLED": "false",
+                "COSYVOICE_QUALITY_MAX_RETRIES": "3",
+            },
+            clear=True,
+        ):
+            settings = Settings.from_env()
+        self.assertEqual(settings.default_seed, 17)
+        self.assertFalse(settings.quality_check_enabled)
+        self.assertEqual(settings.quality_max_retries, 3)
+
+    def test_seed_above_uint32_is_rejected(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"COSYVOICE_DEFAULT_SEED": str(2**32)},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "COSYVOICE_DEFAULT_SEED"):
+                Settings.from_env()
 
 
 if __name__ == "__main__":

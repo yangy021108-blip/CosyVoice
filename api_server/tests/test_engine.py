@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from api_server.app import create_app
 from api_server.config import Settings
-from api_server.engine import CosyVoiceEngine
+from api_server.engine import AudioQualityError, CosyVoiceEngine
 from api_server.schemas import SpeechRequest
 from api_server.voice_store import VoiceSpec, VoiceStore
 
@@ -33,6 +33,9 @@ def make_settings() -> Settings:
         request_timeout_seconds=10,
         fp16=False,
         load_vllm=False,
+        default_seed=2,
+        quality_check_enabled=False,
+        quality_max_retries=2,
     )
 
 
@@ -59,9 +62,10 @@ def make_store() -> VoiceStore:
 class RecordingBackend:
     sample_rate = 24000
 
-    def __init__(self, speakers=("speaker-a",)) -> None:
+    def __init__(self, speakers=("speaker-a",), waveforms=None) -> None:
         self.speakers = list(speakers)
         self.calls: list[tuple[str, dict]] = []
+        self.waveforms = list(waveforms or [])
 
     def list_available_spks(self):
         self.calls.append(("list_available_spks", {}))
@@ -82,6 +86,8 @@ class RecordingBackend:
 
     def _result(self, name, kwargs):
         self.calls.append((name, kwargs))
+        if self.waveforms:
+            return [{"tts_speech": self.waveforms.pop(0)}]
         return [{"tts_speech": np.array([[0.25, -0.25]], dtype=np.float32)}]
 
     def inference_zero_shot(self, **kwargs):
@@ -136,12 +142,87 @@ class EngineTest(unittest.TestCase):
             calls["inference_instruct2"]["prompt_wav"],
             str(zero_voice.prompt_audio),
         )
-        self.assertTrue(
-            calls["inference_instruct2"]["instruct_text"].endswith(
-                "<|endofprompt|>"
-            )
+        self.assertEqual(
+            calls["inference_instruct2"]["instruct_text"],
+            "You are a helpful assistant. speak happily.<|endofprompt|>",
         )
         self.assertEqual(calls["inference_sft"]["spk_id"], "speaker-a")
+
+    def test_degenerate_audio_retries_with_next_seed(self) -> None:
+        store = make_store()
+        backend = RecordingBackend(
+            waveforms=[
+                np.zeros((1, 24000 * 2), dtype=np.float32),
+                np.full((1, 24000 * 2), 0.2, dtype=np.float32),
+            ]
+        )
+        seeds: list[int] = []
+        settings = replace(make_settings(), quality_check_enabled=True)
+        engine = CosyVoiceEngine(
+            settings,
+            store,
+            backend_factory=lambda: backend,
+            seed_setter=seeds.append,
+        )
+        engine.load()
+
+        result = engine.synthesize(
+            request(input="欢迎使用我们的语音合成服务。"),
+            store.get("default"),
+        )
+
+        self.assertEqual(seeds, [2, 3])
+        self.assertEqual(result.seed, 3)
+        self.assertEqual(result.quality_retry_count, 1)
+        self.assertEqual(result.silent_frame_ratio, 0.0)
+
+    def test_explicit_seed_is_reproducible_and_disables_retry(self) -> None:
+        store = make_store()
+        backend = RecordingBackend(
+            waveforms=[np.full((1, 24000 * 2), 0.2, dtype=np.float32)]
+        )
+        seeds: list[int] = []
+        settings = replace(make_settings(), quality_check_enabled=True)
+        engine = CosyVoiceEngine(
+            settings,
+            store,
+            backend_factory=lambda: backend,
+            seed_setter=seeds.append,
+        )
+        engine.load()
+
+        result = engine.synthesize(
+            request(input="欢迎使用我们的语音合成服务。", seed=99),
+            store.get("default"),
+        )
+
+        self.assertEqual(seeds, [99])
+        self.assertEqual(result.seed, 99)
+        self.assertEqual(result.quality_retry_count, 0)
+
+    def test_exhausted_quality_retries_raise_instead_of_returning_noise(self):
+        store = make_store()
+        backend = RecordingBackend(
+            waveforms=[
+                np.zeros((1, 24000 * 2), dtype=np.float32),
+                np.zeros((1, 24000 * 2), dtype=np.float32),
+                np.zeros((1, 24000 * 2), dtype=np.float32),
+            ]
+        )
+        settings = replace(make_settings(), quality_check_enabled=True)
+        engine = CosyVoiceEngine(
+            settings,
+            store,
+            backend_factory=lambda: backend,
+            seed_setter=lambda seed: None,
+        )
+        engine.load()
+
+        with self.assertRaisesRegex(AudioQualityError, "after 3 attempts"):
+            engine.synthesize(
+                request(input="欢迎使用我们的语音合成服务。"),
+                store.get("default"),
+            )
 
     def test_invalid_sft_speaker_prevents_ready_state(self) -> None:
         backend = RecordingBackend(speakers=())
