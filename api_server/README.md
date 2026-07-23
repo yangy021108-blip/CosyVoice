@@ -28,6 +28,26 @@ export COSYVOICE_API_KEY='replace-with-a-secret'
 python -m api_server.main
 ```
 
+The regular PyTorch backend must use the runtime dependency set, including
+`transformers==4.51.3`. Verify the active environment before starting:
+
+```bash
+python -c "import torch, transformers; print('torch=', torch.__version__, 'transformers=', transformers.__version__)"
+```
+
+If the command reports another Transformers version, restore the regular
+backend dependencies with this single-line command:
+
+```bash
+python -m pip install --upgrade "transformers==4.51.3" "tokenizers>=0.21,<0.22"
+```
+
+Do not install `requirements-vllm.txt` into the regular PyTorch environment.
+Its `transformers==4.57.1` pin is for `COSYVOICE_LOAD_VLLM=true` and must use a
+separate environment or image. The server checks this at startup because the
+wrong Transformers backend can produce fluent-looking WAV files whose speech
+does not match the input text.
+
 For an isolated CUDA environment, build the API image from the small
 `api_server` context and mount the repository (the model stays outside the
 image):
@@ -87,18 +107,11 @@ limits, per-key/IP rate limits, connection/response timeouts, and access logs.
 
 ## Synthesize speech
 
+The commands in this section are intentionally one physical line so they can
+be pasted into Bash without line-continuation whitespace errors.
+
 ```bash
-curl http://127.0.0.1:8000/v1/audio/speech \
-  -H "Authorization: Bearer replace-with-a-secret" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "cosyvoice3-0.5b",
-    "input": "你好，这是一次 CosyVoice API 测试。",
-    "voice": "default",
-    "response_format": "wav",
-    "speed": 1.0
-  }' \
-  --output result.wav
+curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer replace-with-a-secret" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"你好，这是一次 CosyVoice API 测试。","voice":"default","response_format":"wav","speed":1.0}' --output result.wav
 ```
 
 Optional style control uses the OpenAI-compatible plural field name:
@@ -159,9 +172,7 @@ python -m compileall -q api_server
 After starting the real service:
 
 ```bash
-python -m api_server.smoke_test \
-  --api-key replace-with-a-secret \
-  --output smoke.wav
+python -m api_server.smoke_test --api-key replace-with-a-secret --output smoke.wav
 ```
 
 The smoke client validates the content type, mono 16-bit WAV structure, sample

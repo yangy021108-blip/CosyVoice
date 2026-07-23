@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
+from importlib import metadata
 from importlib.util import find_spec
 from typing import Callable
 
@@ -26,6 +27,9 @@ from api_server.voice_store import VoiceSpec, VoiceStore
 
 
 LOGGER = logging.getLogger("cosyvoice.api.quality")
+
+PYTORCH_TRANSFORMERS_VERSION = "4.51.3"
+VLLM_TRANSFORMERS_VERSION = "4.57.1"
 
 
 @dataclass(frozen=True)
@@ -105,6 +109,7 @@ class CosyVoiceEngine:
                 "api_server/requirements-vllm.txt or build the Docker image "
                 "with --build-arg INSTALL_VLLM=true"
             )
+        self._validate_runtime_dependencies()
 
         from cosyvoice.cli.cosyvoice import AutoModel
 
@@ -113,6 +118,36 @@ class CosyVoiceEngine:
             load_vllm=self.settings.load_vllm,
             fp16=self.settings.fp16,
         )
+
+    def _validate_runtime_dependencies(self) -> None:
+        required_version = (
+            VLLM_TRANSFORMERS_VERSION
+            if self.settings.load_vllm
+            else PYTORCH_TRANSFORMERS_VERSION
+        )
+        requirements_file = (
+            "api_server/requirements-vllm.txt"
+            if self.settings.load_vllm
+            else "api_server/requirements-runtime.txt"
+        )
+        backend_name = "vLLM" if self.settings.load_vllm else "PyTorch"
+        try:
+            installed_version = metadata.version("transformers")
+        except metadata.PackageNotFoundError as exc:
+            raise RuntimeError(
+                f"{backend_name} backend requires "
+                f"transformers=={required_version}; transformers is not "
+                f"installed. Install {requirements_file}"
+            ) from exc
+        if installed_version != required_version:
+            raise RuntimeError(
+                f"{backend_name} backend requires "
+                f"transformers=={required_version}; found "
+                f"transformers=={installed_version}. Install "
+                f"{requirements_file} in a dedicated environment. Mixing "
+                "the PyTorch and vLLM dependency sets can generate garbled "
+                "speech."
+            )
 
     def synthesize(
         self, request: SpeechRequest, voice: VoiceSpec

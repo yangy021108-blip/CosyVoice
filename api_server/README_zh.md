@@ -60,6 +60,24 @@ export COSYVOICE_MAX_QUEUE_SIZE=16
 /opt/conda/envs/cosyvoice/bin/python -m api_server.main
 ```
 
+普通 PyTorch backend 必须使用 `transformers==4.51.3`。启动前先检查当前
+环境，下面每条测试命令都是单独一行，可以直接复制执行：
+
+```bash
+/opt/conda/envs/cosyvoice/bin/python -c "import torch, transformers; print('torch=', torch.__version__, 'transformers=', transformers.__version__)"
+```
+
+如果输出的 Transformers 不是 `4.51.3`，执行：
+
+```bash
+/opt/conda/envs/cosyvoice/bin/python -m pip install --upgrade "transformers==4.51.3" "tokenizers>=0.21,<0.22"
+```
+
+不要在普通 PyTorch 环境中安装 `requirements-vllm.txt`。其中的
+`transformers==4.57.1` 只用于 `COSYVOICE_LOAD_VLLM=true`，应放在独立环境或
+镜像中。服务启动时会检查版本，因为错误的 Transformers 版本可能生成 WAV，
+但语音内容会与 `input` 不一致并且断断续续。
+
 看到以下信息后说明模型已经加载：
 
 ```text
@@ -95,27 +113,14 @@ curl http://127.0.0.1:8000/ready
 ```bash
 export API_KEY='与服务端 COSYVOICE_API_KEY 相同的值'
 
-curl http://127.0.0.1:8000/v1/models \
-  -H "Authorization: Bearer ${API_KEY}"
-
-curl http://127.0.0.1:8000/v1/audio/voices \
-  -H "Authorization: Bearer ${API_KEY}"
+curl --fail-with-body http://127.0.0.1:8000/v1/models -H "Authorization: Bearer ${API_KEY}"
+curl --fail-with-body http://127.0.0.1:8000/v1/audio/voices -H "Authorization: Bearer ${API_KEY}"
 ```
 
 ### 3.2 生成 WAV
 
 ```bash
-curl --fail-with-body http://127.0.0.1:8000/v1/audio/speech \
-  -H "Authorization: Bearer ${API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "cosyvoice3-0.5b",
-    "input": "你好，这是一次 CosyVoice API 测试。",
-    "voice": "default",
-    "response_format": "wav",
-    "speed": 1.0
-  }' \
-  --output result.wav
+curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"你好，这是一次 CosyVoice API 测试。","voice":"default","response_format":"wav","speed":1.0}' --output result.wav
 ```
 
 WAV 为模型原生采样率的单声道 16-bit 音频；当前 CosyVoice3 模型为 24 kHz。
@@ -125,18 +130,7 @@ WAV 为模型原生采样率的单声道 16-bit 音频；当前 CosyVoice3 模�
 `instructions` 只支持 zero-shot 音色：
 
 ```bash
-curl --fail-with-body http://127.0.0.1:8000/v1/audio/speech \
-  -H "Authorization: Bearer ${API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "cosyvoice3-0.5b",
-    "input": "欢迎使用我们的语音合成服务。",
-    "voice": "default",
-    "response_format": "wav",
-    "speed": 1.0,
-    "instructions": "请用四川话、开心地说这句话"
-  }' \
-  --output instructed.wav
+curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"欢迎使用我们的语音合成服务。","voice":"default","response_format":"wav","speed":1.0,"instructions":"请用四川话、开心地说这句话"}' --output instructed.wav
 ```
 
 CosyVoice 的语音 token 生成包含随机采样。不传 `seed` 时，服务从经过当前模型验证的默认 seed 开始；如果结果明显过短、相对文本异常长或大部分接近静音，会自动换下一个 seed 重试。README 中的 `result.wav` 和 `instructed.wav` 命令不需要增加新参数。
@@ -156,16 +150,7 @@ CosyVoice 的语音 token 生成包含随机采样。不传 `seed` 时，服务�
 ### 3.4 获取裸 PCM
 
 ```bash
-curl --fail-with-body http://127.0.0.1:8000/v1/audio/speech \
-  -H "Authorization: Bearer ${API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "cosyvoice3-0.5b",
-    "input": "这是 PCM 输出测试。",
-    "voice": "default",
-    "response_format": "pcm"
-  }' \
-  --output result.pcm
+curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"这是 PCM 输出测试。","voice":"default","response_format":"pcm"}' --output result.pcm
 ```
 
 PCM 格式为单声道、有符号 16-bit little-endian、模型原生采样率。24 kHz 模型可以这样播放：
@@ -393,13 +378,7 @@ python -m compileall -q api_server
 服务启动后运行真实模型冒烟：
 
 ```bash
-python -m api_server.smoke_test \
-  --base-url http://127.0.0.1:8000 \
-  --api-key '替换成你的密钥' \
-  --model cosyvoice3-0.5b \
-  --voice default \
-  --text '你好，这是一次真实模型冒烟测试。' \
-  --output smoke.wav
+python -m api_server.smoke_test --base-url http://127.0.0.1:8000 --api-key '替换成你的密钥' --model cosyvoice3-0.5b --voice default --text '你好，这是一次真实模型冒烟测试。' --output smoke.wav
 ```
 
 该脚本会验证：

@@ -257,6 +257,33 @@ class EngineTest(unittest.TestCase):
             ):
                 engine._create_backend()
 
+    def test_pytorch_backend_rejects_incompatible_transformers(self) -> None:
+        engine = CosyVoiceEngine(make_settings(), make_store())
+        with patch(
+            "api_server.engine.metadata.version", return_value="4.57.1"
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"PyTorch backend requires transformers==4\.51\.3; "
+                r"found transformers==4\.57\.1",
+            ):
+                engine._validate_runtime_dependencies()
+
+    def test_backend_accepts_its_pinned_transformers_version(self) -> None:
+        pytorch_engine = CosyVoiceEngine(make_settings(), make_store())
+        vllm_engine = CosyVoiceEngine(
+            replace(make_settings(), load_vllm=True), make_store()
+        )
+
+        with patch(
+            "api_server.engine.metadata.version", return_value="4.51.3"
+        ):
+            pytorch_engine._validate_runtime_dependencies()
+        with patch(
+            "api_server.engine.metadata.version", return_value="4.57.1"
+        ):
+            vllm_engine._validate_runtime_dependencies()
+
 
 if __name__ == "__main__":
     unittest.main()
