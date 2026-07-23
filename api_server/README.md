@@ -1,6 +1,7 @@
 # CosyVoice HTTP API
 
-[中文使用指南](README_zh.md)
+[中文使用指南](README_zh.md) |
+[当前服务器 vLLM Docker 详解](VLLM_DOCKER.md)
 
 This package adds a small product-facing HTTP layer without changing the model
 implementation under `cosyvoice/`.
@@ -67,16 +68,168 @@ The image intentionally supplies PyTorch/torchaudio as a matched pair in the
 base layer instead of reinstalling the older CUDA wheels from the repository's
 training-oriented `requirements.txt`.
 
-The base image uses the regular PyTorch backend. Build the explicit vLLM
-variant when `COSYVOICE_LOAD_VLLM=true` is required:
+### Verified vLLM Docker workflow on the current server
+
+The HTTP entry point remains `python -m api_server.main`. Setting
+`COSYVOICE_LOAD_VLLM=true` replaces only CosyVoice's LLM/speech-token stage
+with the embedded vLLM V1 engine; it does not start a separate `vllm serve`
+process.
+
+The Docker data root on the current server has less than 5 GB free, so a
+second self-contained CUDA/PyTorch image cannot be built safely there. The
+verified deployment uses the thin `Dockerfile.vllm`, reuses the locally
+available CUDA base image, and mounts a dedicated copy of the Python
+environment from `/SharedData`. The copied environment occupies about 31 GB
+on `/SharedData` and does not change the PyTorch environment used by port
+8010.
+
+Run every command below from `/SharedData/yangyu/CosyVoice`. Build the thin
+image:
 
 ```bash
-docker build --build-arg INSTALL_VLLM=true \
-  -t cosyvoice-api:vllm -f api_server/Dockerfile api_server
+docker build -t cosyvoice-api:vllm-test -f api_server/Dockerfile.vllm api_server
 ```
 
-The vLLM layer is pinned separately in `requirements-vllm.txt`. Enabling vLLM
-without installing that layer fails at startup with an actionable error.
+Copy the known-good environment once. Run the following block line by line;
+the conditional prevents a second copy:
+
+```bash
+if [ ! -d /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice ]; then
+  mkdir -p /SharedData/yangyu/cosyvoice_vllm_env
+  docker cp vllm_env_yy:/opt/conda/envs/cosyvoice /SharedData/yangyu/cosyvoice_vllm_env
+fi
+```
+
+Install the vLLM dependency set only in that copy:
+
+```bash
+docker run --rm \
+  -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice \
+  -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
+  cosyvoice-api:vllm-test \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -m pip install \
+  --no-cache-dir \
+  -r /workspace/CosyVoice/api_server/requirements-vllm.txt
+```
+
+Confirm both the isolated versions and GPU access:
+
+```bash
+docker run --rm \
+  --runtime nvidia \
+  -e NVIDIA_VISIBLE_DEVICES=6 \
+  -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice \
+  -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
+  cosyvoice-api:vllm-test \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -c 'import torch; from importlib import metadata; print(torch.cuda.get_device_name(0)); print("torch", metadata.version("torch"), "vllm", metadata.version("vllm"), "transformers", metadata.version("transformers"), "numpy", metadata.version("numpy"))'
+```
+
+The verified versions are PyTorch 2.8.0, vLLM 0.11.0, Transformers 4.57.1,
+and NumPy 1.26.4. Do not install this Transformers version into the original
+PyTorch environment, which must remain on Transformers 4.51.3.
+
+Create a protected Docker environment file outside the repository, then open
+it in an editor:
+
+```bash
+touch /SharedData/yangyu/cosyvoice_vllm_api.env
+chmod 600 /SharedData/yangyu/cosyvoice_vllm_api.env
+vim /SharedData/yangyu/cosyvoice_vllm_api.env
+```
+
+Put the following values in the file, replacing the API key placeholder:
+
+```dotenv
+COSYVOICE_LOAD_VLLM=true
+COSYVOICE_HOST=127.0.0.1
+COSYVOICE_PORT=8011
+COSYVOICE_API_KEY=replace-with-a-secret
+COSYVOICE_MAX_CONCURRENCY=1
+COSYVOICE_MAX_QUEUE_SIZE=16
+COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
+```
+
+Check whether an older test container exists. Remove it only when it appears
+in the first command:
+
+```bash
+docker ps -a --filter name=cosyvoice_api_vllm_yy
+docker rm -f cosyvoice_api_vllm_yy
+```
+
+Prepare the persistent cache:
+
+```bash
+mkdir -p /SharedData/yangyu/cosyvoice_vllm_cache
+```
+
+Start the vLLM service on physical GPU 6 and host port 8011. This is one
+`docker run` command formatted across multiple lines so each option can be
+entered and checked separately:
+
+```bash
+docker run -d \
+  --name cosyvoice_api_vllm_yy \
+  --runtime nvidia \
+  -e NVIDIA_VISIBLE_DEVICES=6 \
+  --ipc=host \
+  --network host \
+  --env-file /SharedData/yangyu/cosyvoice_vllm_api.env \
+  -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
+  -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice:ro \
+  -v /SharedData/yangyu/cosyvoice_vllm_cache:/root/.cache \
+  cosyvoice-api:vllm-test
+```
+
+The first startup exports vLLM weights, runs `torch.compile`, and captures
+CUDA Graphs. Follow the log until both `Initializing a V1 LLM engine
+(v0.11.0)` and `Uvicorn running on http://127.0.0.1:8011` appear:
+
+```bash
+docker logs -f cosyvoice_api_vllm_yy
+```
+
+From another shell, check readiness and authenticated model discovery:
+
+```bash
+curl --fail http://127.0.0.1:8011/health
+curl --fail http://127.0.0.1:8011/ready
+```
+
+```bash
+API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
+curl --fail-with-body http://127.0.0.1:8011/v1/models \
+  -H "Authorization: Bearer ${API_KEY}"
+```
+
+Run a real vLLM-backed synthesis request:
+
+```bash
+API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
+curl --fail-with-body \
+  --request POST \
+  http://127.0.0.1:8011/v1/audio/speech \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"cosyvoice3-0.5b","input":"你好，这是 CosyVoice vLLM API 的真实推理测试。","voice":"default","response_format":"wav","speed":1.0}' \
+  --output vllm_result.wav
+```
+
+Validate the generated WAV with Python inside the running container; this does
+not require `ffprobe` on the host:
+
+```bash
+docker exec cosyvoice_api_vllm_yy \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -c 'import wave; f = wave.open("/workspace/CosyVoice/vllm_result.wav", "rb"); print("sample_rate", f.getframerate()); print("channels", f.getnchannels()); print("sample_width", f.getsampwidth()); print("duration", round(f.getnframes() / f.getframerate(), 2))'
+```
+
+The tested request returned HTTP 200, a 24 kHz mono PCM16 WAV, 6.08 seconds
+of audio, RTF 0.2599, and zero clipped samples. An independent ASR check
+matched the requested sentence (apart from spelling the spoken `vLLM`
+abbreviation as `VLM`).
 
 Useful settings:
 

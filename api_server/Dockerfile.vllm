@@ -1,0 +1,17 @@
+# The server's Docker data root has limited space. Reuse the locally available
+# CUDA base and mount a dedicated Conda environment from /SharedData at
+# /opt/conda/envs/cosyvoice. The base already supplies the runtime libsndfile
+# dependency; model inference does not invoke the optional sox CLI.
+ARG BASE_IMAGE=qwenllm/qwen3-asr:latest
+FROM ${BASE_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+USER root
+
+WORKDIR /workspace/CosyVoice
+ENV PYTHONPATH=/workspace/CosyVoice
+
+CMD ["/opt/conda/envs/cosyvoice/bin/python", "-m", "api_server.main"]
