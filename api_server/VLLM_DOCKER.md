@@ -76,9 +76,13 @@ docker run --rm \
   -c 'import torch; from importlib import metadata; print(torch.cuda.get_device_name(0)); print("torch", metadata.version("torch"), "vllm", metadata.version("vllm"), "transformers", metadata.version("transformers"), "numpy", metadata.version("numpy"))'
 ```
 
-## 4. 配置和一次性创建容器
+## 4. 选择 API Key 配置方式并创建容器
 
-创建只允许当前用户读取的环境变量文件，然后使用编辑器填写内容。不要把真实 API Key 提交到 Git：
+API Key 有以下两种配置方式，选择一种即可。
+
+### 4.1 方式 A：使用宿主机环境文件
+
+在 Docker 宿主机创建只允许当前用户读取的环境变量文件，然后使用编辑器填写内容。不要把真实 API Key 提交到 Git：
 
 ```bash
 touch /SharedData/yangyu/cosyvoice_vllm_api.env
@@ -97,6 +101,20 @@ COSYVOICE_MAX_CONCURRENCY=1
 COSYVOICE_MAX_QUEUE_SIZE=16
 COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
 ```
+
+`--env-file` 只会在创建容器时读取变量，不会把该文件挂载进容器。因此，在 `cosyvoice_api_vllm_yy` 容器内部找不到 `/SharedData/yangyu/cosyvoice_vllm_api.env` 是正常现象。
+
+### 4.2 方式 B：启动服务时直接指定 API Key
+
+这种方式不需要创建 `cosyvoice_vllm_api.env`。执行后面的 `docker create` 时，删除下面这一行：
+
+```text
+--env-file /SharedData/yangyu/cosyvoice_vllm_api.env
+```
+
+服务端所需的全部变量会在窗口 A 使用 `docker exec -e` 传入。
+
+不要把 API Key 写进 `api_server/voices.json`。该文件只负责配置音色，可能被提交到 Git，而且当前服务不会把它当成鉴权配置读取。
 
 下面把镜像构建、容器创建、容器启动和 API 服务启动分开。需要注意：
 
@@ -135,7 +153,7 @@ docker create \
   sleep infinity
 ```
 
-`--env-file` 的值会在创建容器时写入容器配置。如果之后修改了该文件中的端口、API Key 或其他环境变量，需要删除并重新创建容器；只执行 `docker restart` 不会重新读取环境文件。
+方式 A 中，`--env-file` 的值会在创建容器时写入容器配置。如果之后修改了该文件中的端口、API Key 或其他环境变量，需要删除并重新创建容器；只执行 `docker restart` 不会重新读取环境文件。方式 B 不受此限制，每次执行 `docker exec` 时可以指定新的 API Key。
 
 ## 5. 窗口 A：启动容器和 vLLM 后端服务
 
@@ -145,10 +163,36 @@ docker create \
 docker start cosyvoice_api_vllm_yy
 ```
 
-然后在窗口 A 前台启动 CosyVoice API：
+如果选择方式 A，在窗口 A 前台启动 CosyVoice API：
 
 ```bash
 docker exec -it cosyvoice_api_vllm_yy \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -m api_server.main
+```
+
+如果选择方式 B，先隐藏输入 API Key：
+
+```bash
+read -rsp "请输入 API Key: " COSYVOICE_API_KEY
+```
+
+```bash
+echo
+```
+
+然后在启动服务时直接传入全部配置：
+
+```bash
+docker exec -it \
+  -e COSYVOICE_LOAD_VLLM=true \
+  -e COSYVOICE_HOST=127.0.0.1 \
+  -e COSYVOICE_PORT=8011 \
+  -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
+  -e COSYVOICE_MAX_CONCURRENCY=1 \
+  -e COSYVOICE_MAX_QUEUE_SIZE=16 \
+  -e COSYVOICE_REQUEST_TIMEOUT_SECONDS=600 \
+  cosyvoice_api_vllm_yy \
   /opt/conda/envs/cosyvoice/bin/python \
   -m api_server.main
 ```
@@ -173,10 +217,27 @@ curl http://127.0.0.1:8011/health
 curl http://127.0.0.1:8011/ready
 ```
 
-模型列表：
+根据窗口 A 使用的方式设置客户端 API Key。
+
+方式 A 从宿主机环境文件读取：
 
 ```bash
 API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
+```
+
+方式 B 输入与窗口 A 相同的 API Key：
+
+```bash
+read -rsp "请输入相同的 API Key: " API_KEY
+```
+
+```bash
+echo
+```
+
+然后查询模型列表：
+
+```bash
 curl http://127.0.0.1:8011/v1/models \
   -H "Authorization: Bearer ${API_KEY}"
 ```
@@ -184,7 +245,6 @@ curl http://127.0.0.1:8011/v1/models \
 真实语音推理：
 
 ```bash
-API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
 curl --fail-with-body \
   --request POST \
   http://127.0.0.1:8011/v1/audio/speech \
@@ -217,6 +277,8 @@ ASR 将英文缩写 `vLLM` 听写为 `VLM`，其余文本与输入一致。
 
 拆分后的生命周期也已经真实验证：单独执行 `docker start` 时只有容器运行，执行 `docker exec` 后 API 才就绪；窗口 B 成功生成了 24 kHz、单声道、PCM16 WAV；执行 `docker stop` 后，再次按 `docker start`、`docker exec` 的顺序可以恢复服务。
 
+方式 B 也使用一个没有环境文件、没有持久化 API Key 的容器完成了真实验证：不带密钥请求返回 HTTP 401，通过 `docker exec -e` 指定的密钥可以鉴权并完成语音推理，生成 24 kHz、单声道、PCM16 WAV。
+
 ## 7. 停止和再次启动
 
 只停止 API 服务时，在窗口 A 按 `Ctrl+C`。此时 `sleep infinity` 仍在运行，所以容器不会退出。
@@ -233,13 +295,7 @@ docker stop cosyvoice_api_vllm_yy
 docker start cosyvoice_api_vllm_yy
 ```
 
-再在窗口 A 重新执行服务命令：
-
-```bash
-docker exec -it cosyvoice_api_vllm_yy \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -m api_server.main
-```
+再在窗口 A 重新执行第 5 节中与所选方式对应的 `docker exec` 服务命令。
 
 然后在窗口 B 重复第 6 节的请求命令。
 

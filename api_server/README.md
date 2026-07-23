@@ -130,8 +130,12 @@ The verified versions are PyTorch 2.8.0, vLLM 0.11.0, Transformers 4.57.1,
 and NumPy 1.26.4. Do not install this Transformers version into the original
 PyTorch environment, which must remain on Transformers 4.51.3.
 
-Create a protected Docker environment file outside the repository, then open
-it in an editor:
+Choose one of the following API-key modes.
+
+#### Mode A: protected host environment file
+
+Create the file outside the repository on the Docker host, then open it in an
+editor:
 
 ```bash
 touch /SharedData/yangyu/cosyvoice_vllm_api.env
@@ -150,6 +154,25 @@ COSYVOICE_MAX_CONCURRENCY=1
 COSYVOICE_MAX_QUEUE_SIZE=16
 COSYVOICE_REQUEST_TIMEOUT_SECONDS=600
 ```
+
+`--env-file` reads these values while creating the container; it does not
+mount the file into the container. Therefore, it is normal that
+`/SharedData/yangyu/cosyvoice_vllm_api.env` cannot be found from a shell
+inside `cosyvoice_api_vllm_yy`.
+
+#### Mode B: specify the API key when starting the service
+
+This mode does not require `cosyvoice_vllm_api.env`. Omit the following line
+from the `docker create` command below:
+
+```text
+--env-file /SharedData/yangyu/cosyvoice_vllm_api.env
+```
+
+All service settings, including the API key, will instead be passed to
+`docker exec` in shell A. Do not store API keys in `api_server/voices.json`:
+that file is the voice registry, may be committed to Git, and is not an
+authentication configuration file.
 
 The remaining steps deliberately separate image construction, container
 creation, container startup, and API-process startup. A stopped container
@@ -187,8 +210,9 @@ docker create \
   sleep infinity
 ```
 
-The environment-file values are copied into the container configuration at
-creation time. Recreate the container after changing those values.
+In mode A, the environment-file values are copied into the container
+configuration at creation time. Recreate the container after changing those
+values. This does not apply to mode B.
 
 Start the container. Run the same command after a host reboot or after
 `docker stop`:
@@ -197,10 +221,37 @@ Start the container. Run the same command after a host reboot or after
 docker start cosyvoice_api_vllm_yy
 ```
 
-In shell A, start the CosyVoice API process in the foreground:
+In shell A, start the CosyVoice API process in the foreground. With mode A,
+run:
 
 ```bash
 docker exec -it cosyvoice_api_vllm_yy \
+  /opt/conda/envs/cosyvoice/bin/python \
+  -m api_server.main
+```
+
+With mode B, enter a key without echoing it to the terminal:
+
+```bash
+read -rsp "API Key: " COSYVOICE_API_KEY
+```
+
+```bash
+echo
+```
+
+Then pass all service settings directly to the new process:
+
+```bash
+docker exec -it \
+  -e COSYVOICE_LOAD_VLLM=true \
+  -e COSYVOICE_HOST=127.0.0.1 \
+  -e COSYVOICE_PORT=8011 \
+  -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
+  -e COSYVOICE_MAX_CONCURRENCY=1 \
+  -e COSYVOICE_MAX_QUEUE_SIZE=16 \
+  -e COSYVOICE_REQUEST_TIMEOUT_SECONDS=600 \
+  cosyvoice_api_vllm_yy \
   /opt/conda/envs/cosyvoice/bin/python \
   -m api_server.main
 ```
@@ -213,15 +264,32 @@ exports vLLM weights, runs `torch.compile`, and captures CUDA Graphs. Keep
 shell A open until both `Initializing a V1 LLM engine (v0.11.0)` and
 `Uvicorn running on http://127.0.0.1:8011` appear.
 
-In shell B, check readiness and authenticated model discovery:
+In shell B, check readiness:
 
 ```bash
 curl --fail http://127.0.0.1:8011/health
 curl --fail http://127.0.0.1:8011/ready
 ```
 
+Set the client key with the same mode used in shell A. For mode A:
+
 ```bash
 API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
+```
+
+For mode B, type the same key:
+
+```bash
+read -rsp "API Key: " API_KEY
+```
+
+```bash
+echo
+```
+
+Then perform authenticated model discovery:
+
+```bash
 curl --fail-with-body http://127.0.0.1:8011/v1/models \
   -H "Authorization: Bearer ${API_KEY}"
 ```
@@ -229,7 +297,6 @@ curl --fail-with-body http://127.0.0.1:8011/v1/models \
 Run a real vLLM-backed synthesis request:
 
 ```bash
-API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
 curl --fail-with-body \
   --request POST \
   http://127.0.0.1:8011/v1/audio/speech \
@@ -256,7 +323,10 @@ abbreviation as `VLM`).
 The separated lifecycle was also tested: `docker start` brought up only the
 idle container, `docker exec` made the API ready, shell B generated a valid
 24 kHz mono PCM16 WAV, and the same start/exec sequence restored the service
-after `docker stop`.
+after `docker stop`. Mode B was tested with a container that had no
+environment file or persistent API key: an unauthenticated request returned
+HTTP 401, while the key passed to `docker exec -e` authorized a real
+synthesis request.
 
 To stop only the API process, press `Ctrl+C` in shell A. The persistent
 container remains running. To stop it as well:
@@ -265,19 +335,11 @@ container remains running. To stop it as well:
 docker stop cosyvoice_api_vllm_yy
 ```
 
-To use it again, first start the container, then repeat the `docker exec`
-command in shell A:
+To use it again, first start the container, then repeat the mode A or mode B
+`docker exec` command in shell A:
 
 ```bash
 docker start cosyvoice_api_vllm_yy
-```
-
-Then, in shell A:
-
-```bash
-docker exec -it cosyvoice_api_vllm_yy \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -m api_server.main
 ```
 
 Useful settings:
