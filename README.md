@@ -19,7 +19,7 @@
 - **Bi-Streaming**: Support both text-in streaming and audio-out streaming, and achieves latency as low as 150ms while maintaining high-quality audio output.
 - **Instruct Support**: Supports various instructions such as languages, dialects, emotions, speed, volume, etc.
 
-## OpenAI-Compatible HTTP API
+## OpenAI-Style HTTP API
 
 This fork includes a lightweight, non-streaming HTTP service with Bearer authentication, health checks, server-managed voices, and WAV/PCM output.
 
