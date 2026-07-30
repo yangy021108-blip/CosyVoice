@@ -19,45 +19,33 @@
 - **Bi-Streaming**: Support both text-in streaming and audio-out streaming, and achieves latency as low as 150ms while maintaining high-quality audio output.
 - **Instruct Support**: Supports various instructions such as languages, dialects, emotions, speed, volume, etc.
 
+## OpenAI-Compatible HTTP API
 
-## Roadmap
+This fork includes a lightweight, non-streaming HTTP service with Bearer authentication, health checks, server-managed voices, and WAV/PCM output.
 
-- [x] 2025/12
+Start the service from the repository root after installing the CosyVoice runtime dependencies and downloading the model:
 
-    - [x] release Fun-CosyVoice3-0.5B-2512 base model, rl model and its training/inference script
-    - [x] release Fun-CosyVoice3-0.5B modelscope gradio space
+```bash
+export COSYVOICE_MODEL_DIR=pretrained_models/Fun-CosyVoice3-0.5B
+export COSYVOICE_PORT=8000
+export COSYVOICE_API_KEY='replace-with-a-secret'
+python -m api_server.main
+```
 
-- [x] 2025/08
+Check readiness:
 
-    - [x] Thanks to the contribution from NVIDIA Yuekai Zhang, add triton trtllm runtime support and cosyvoice2 grpo training support
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/ready
+```
 
-- [x] 2025/07
+Generate speech with the OpenAI-style endpoint:
 
-    - [x] release Fun-CosyVoice 3.0 eval set
+```bash
+curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer ${COSYVOICE_API_KEY}" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"你好，这是一次 CosyVoice API 测试。","voice":"default","response_format":"wav","speed":1.0}' --output result.wav
+```
 
-- [x] 2025/05
-
-    - [x] add CosyVoice2-0.5B vllm support
-
-- [x] 2024/12
-
-    - [x] 25hz CosyVoice2-0.5B released
-
-- [x] 2024/09
-
-    - [x] 25hz CosyVoice-300M base model
-    - [x] 25hz CosyVoice-300M voice conversion function
-
-- [x] 2024/08
-
-    - [x] Repetition Aware Sampling(RAS) inference for llm stability
-    - [x] Streaming inference mode support, including kv cache and sdpa for rtf optimization
-
-- [x] 2024/07
-
-    - [x] Flow matching training support
-    - [x] WeTextProcessing support when ttsfrd is not available
-    - [x] Fastapi server and client
+Available endpoints include `POST /v1/audio/speech`, `GET /health`, `GET /ready`, `GET /v1/models`, and `GET /v1/audio/voices`. See the [API guide](api_server/README.md), [中文使用指南](api_server/README_zh.md), and [vLLM Docker guide](api_server/VLLM_DOCKER.md) for voice configuration, Docker deployment, authentication, and testing.
 
 ## Evaluation
 
@@ -209,14 +197,6 @@ cd runtime/triton_trtllm
 docker compose up -d
 ```
 For more details, you could check [here](https://github.com/FunAudioLLM/CosyVoice/tree/main/runtime/triton_trtllm)
-
-## Discussion & Communication
-
-You can directly discuss on [Github Issues](https://github.com/FunAudioLLM/CosyVoice/issues).
-
-You can also scan the QR code to join our official Dingding chat group.
-
-<img src="./asset/dingding.png" width="250px">
 
 ## Acknowledge
 
