@@ -314,6 +314,7 @@ class CausalMaskedDiffWithDiT(torch.nn.Module):
         self.decoder = decoder
         self.only_mask_loss = only_mask_loss
         self.token_mel_ratio = token_mel_ratio
+        self.inference_steps = 10
         if online_feature is True:
             self.speech_token_extractor = SpeechTokenExtractor(model_path=os.path.join(onnx_path, 'speech_tokenizer_v3.batch.onnx'))
 
@@ -406,7 +407,7 @@ class CausalMaskedDiffWithDiT(torch.nn.Module):
             mask=mask.unsqueeze(1),
             spks=embedding,
             cond=conds,
-            n_timesteps=10,
+            n_timesteps=self.inference_steps,
             streaming=streaming
         )
         feat = feat[:, :, mel_len1:]

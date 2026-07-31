@@ -63,12 +63,15 @@ class Settings:
     request_timeout_seconds: int
     fp16: bool
     load_vllm: bool
+    flow_steps: int = 8
     allow_unauthenticated: bool = False
     default_seed: int = 2
     quality_check_enabled: bool = True
     quality_max_retries: int = 2
 
     def __post_init__(self) -> None:
+        if not 1 <= self.flow_steps <= 100:
+            raise ValueError("flow_steps must be between 1 and 100")
         if not 0 <= self.default_seed <= 2**32 - 1:
             raise ValueError("default_seed must be between 0 and 4294967295")
         if self.quality_max_retries < 0:
@@ -119,6 +122,9 @@ class Settings:
             ),
             fp16=_env_bool("COSYVOICE_FP16", False),
             load_vllm=_env_bool("COSYVOICE_LOAD_VLLM", False),
+            flow_steps=_env_int_range(
+                "COSYVOICE_FLOW_STEPS", 8, 1, 100
+            ),
             allow_unauthenticated=_env_bool(
                 "COSYVOICE_ALLOW_UNAUTHENTICATED", False
             ),

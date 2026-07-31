@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
 from api_server.config import Settings
@@ -14,6 +15,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.host, "127.0.0.1")
         self.assertIsNone(settings.api_key)
         self.assertEqual(settings.default_seed, 2)
+        self.assertEqual(settings.flow_steps, 8)
         self.assertTrue(settings.quality_check_enabled)
         self.assertEqual(settings.quality_max_retries, 2)
 
@@ -74,6 +76,26 @@ class SettingsTest(unittest.TestCase):
         ):
             with self.assertRaisesRegex(ValueError, "COSYVOICE_DEFAULT_SEED"):
                 Settings.from_env()
+
+    def test_flow_steps_are_read_and_validated(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"COSYVOICE_FLOW_STEPS": "8"},
+            clear=True,
+        ):
+            settings = Settings.from_env()
+        self.assertEqual(settings.flow_steps, 8)
+
+        with patch.dict(
+            os.environ,
+            {"COSYVOICE_FLOW_STEPS": "0"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "COSYVOICE_FLOW_STEPS"):
+                Settings.from_env()
+
+        with self.assertRaisesRegex(ValueError, "flow_steps"):
+            replace(settings, flow_steps=101)
 
 
 if __name__ == "__main__":

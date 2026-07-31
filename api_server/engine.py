@@ -113,11 +113,13 @@ class CosyVoiceEngine:
 
         from cosyvoice.cli.cosyvoice import AutoModel
 
-        return AutoModel(
+        backend = AutoModel(
             model_dir=str(self.settings.model_dir),
             load_vllm=self.settings.load_vllm,
             fp16=self.settings.fp16,
         )
+        backend.model.flow.inference_steps = self.settings.flow_steps
+        return backend
 
     def _validate_runtime_dependencies(self) -> None:
         required_version = (

@@ -360,6 +360,7 @@ Useful settings:
 | `COSYVOICE_MAX_QUEUE_SIZE` | `16` |
 | `COSYVOICE_REQUEST_TIMEOUT_SECONDS` | `600` |
 | `COSYVOICE_FP16` / `COSYVOICE_LOAD_VLLM` | `false` / `false` |
+| `COSYVOICE_FLOW_STEPS` | `8` |
 | `COSYVOICE_DEFAULT_SEED` | `2` |
 | `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` |
 | `COSYVOICE_QUALITY_MAX_RETRIES` | `2` |
@@ -372,6 +373,10 @@ Binding to a non-loopback address without `COSYVOICE_API_KEY` is rejected.
 trusted, isolated environment; it should not be used for an external service.
 Put public deployments behind an HTTPS gateway that enforces request-size
 limits, per-key/IP rate limits, connection/response timeouts, and access logs.
+
+The API defaults to 8 Flow steps, which passed the real-model speech-content
+regression used for this service. Set `COSYVOICE_FLOW_STEPS=10` to restore the
+upstream quality-first sampling depth.
 
 ## Synthesize speech
 
