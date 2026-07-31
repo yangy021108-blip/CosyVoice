@@ -15,7 +15,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.host, "127.0.0.1")
         self.assertIsNone(settings.api_key)
         self.assertEqual(settings.default_seed, 2)
-        self.assertEqual(settings.flow_steps, 8)
+        self.assertEqual(settings.flow_steps, 6)
         self.assertTrue(settings.quality_check_enabled)
         self.assertEqual(settings.quality_max_retries, 2)
 

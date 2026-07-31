@@ -63,7 +63,7 @@ class Settings:
     request_timeout_seconds: int
     fp16: bool
     load_vllm: bool
-    flow_steps: int = 8
+    flow_steps: int = 6
     allow_unauthenticated: bool = False
     default_seed: int = 2
     quality_check_enabled: bool = True
@@ -123,7 +123,7 @@ class Settings:
             fp16=_env_bool("COSYVOICE_FP16", False),
             load_vllm=_env_bool("COSYVOICE_LOAD_VLLM", False),
             flow_steps=_env_int_range(
-                "COSYVOICE_FLOW_STEPS", 8, 1, 100
+                "COSYVOICE_FLOW_STEPS", 6, 1, 100
             ),
             allow_unauthenticated=_env_bool(
                 "COSYVOICE_ALLOW_UNAUTHENTICATED", False

@@ -360,7 +360,7 @@ Useful settings:
 | `COSYVOICE_MAX_QUEUE_SIZE` | `16` |
 | `COSYVOICE_REQUEST_TIMEOUT_SECONDS` | `600` |
 | `COSYVOICE_FP16` / `COSYVOICE_LOAD_VLLM` | `false` / `false` |
-| `COSYVOICE_FLOW_STEPS` | `8` |
+| `COSYVOICE_FLOW_STEPS` | `6` |
 | `COSYVOICE_DEFAULT_SEED` | `2` |
 | `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` |
 | `COSYVOICE_QUALITY_MAX_RETRIES` | `2` |
@@ -374,9 +374,11 @@ trusted, isolated environment; it should not be used for an external service.
 Put public deployments behind an HTTPS gateway that enforces request-size
 limits, per-key/IP rate limits, connection/response timeouts, and access logs.
 
-The API defaults to 8 Flow steps, which passed the real-model speech-content
-regression used for this service. Set `COSYVOICE_FLOW_STEPS=10` to restore the
-upstream quality-first sampling depth.
+The API defaults to 6 Flow steps. This was validated on an H100 against the
+previous 8-step default with five real synthesis prompts, independent ASR, and
+100 consecutive requests; see [H100 optimization report](H100_OPTIMIZATION_REPORT.md).
+Set `COSYVOICE_FLOW_STEPS=8` to return to the previous service default, or
+`COSYVOICE_FLOW_STEPS=10` to restore upstream's quality-first sampling depth.
 
 ## Synthesize speech
 
