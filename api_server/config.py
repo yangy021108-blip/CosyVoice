@@ -63,12 +63,22 @@ class Settings:
     request_timeout_seconds: int
     fp16: bool
     load_vllm: bool
+    load_trt: bool = False
+    trt_engine_dir: Path | None = None
+    flow_steps: int = 6
     allow_unauthenticated: bool = False
     default_seed: int = 2
     quality_check_enabled: bool = True
     quality_max_retries: int = 2
 
     def __post_init__(self) -> None:
+        if self.load_trt and self.fp16:
+            raise ValueError(
+                "COSYVOICE_LOAD_TRT currently supports only FP32; "
+                "set COSYVOICE_FP16=false"
+            )
+        if not 1 <= self.flow_steps <= 100:
+            raise ValueError("flow_steps must be between 1 and 100")
         if not 0 <= self.default_seed <= 2**32 - 1:
             raise ValueError("default_seed must be between 0 and 4294967295")
         if self.quality_max_retries < 0:
@@ -100,6 +110,12 @@ class Settings:
             )
         ).expanduser()
         api_key = os.getenv("COSYVOICE_API_KEY")
+        trt_engine_dir = Path(
+            os.getenv(
+                "COSYVOICE_TRT_ENGINE_DIR",
+                str(root_dir / ".cache" / "cosyvoice_trt"),
+            )
+        ).expanduser()
 
         return cls(
             root_dir=root_dir,
@@ -119,6 +135,11 @@ class Settings:
             ),
             fp16=_env_bool("COSYVOICE_FP16", False),
             load_vllm=_env_bool("COSYVOICE_LOAD_VLLM", False),
+            load_trt=_env_bool("COSYVOICE_LOAD_TRT", False),
+            trt_engine_dir=trt_engine_dir,
+            flow_steps=_env_int_range(
+                "COSYVOICE_FLOW_STEPS", 6, 1, 100
+            ),
             allow_unauthenticated=_env_bool(
                 "COSYVOICE_ALLOW_UNAUTHENTICATED", False
             ),
