@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import unittest
 from dataclasses import replace
+from pathlib import Path
 from unittest.mock import patch
 
 from api_server.config import Settings
@@ -16,6 +17,11 @@ class SettingsTest(unittest.TestCase):
         self.assertIsNone(settings.api_key)
         self.assertEqual(settings.default_seed, 2)
         self.assertEqual(settings.flow_steps, 6)
+        self.assertFalse(settings.load_trt)
+        self.assertEqual(
+            settings.trt_engine_dir,
+            settings.root_dir / ".cache" / "cosyvoice_trt",
+        )
         self.assertTrue(settings.quality_check_enabled)
         self.assertEqual(settings.quality_max_retries, 2)
 
@@ -96,6 +102,22 @@ class SettingsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "flow_steps"):
             replace(settings, flow_steps=101)
+
+    def test_trt_settings_are_read_and_fp16_is_rejected(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "COSYVOICE_LOAD_TRT": "true",
+                "COSYVOICE_TRT_ENGINE_DIR": "/tmp/cosyvoice-trt",
+            },
+            clear=True,
+        ):
+            settings = Settings.from_env()
+        self.assertTrue(settings.load_trt)
+        self.assertEqual(settings.trt_engine_dir, Path("/tmp/cosyvoice-trt"))
+
+        with self.assertRaisesRegex(ValueError, "only FP32"):
+            replace(settings, fp16=True, load_trt=True)
 
 
 if __name__ == "__main__":

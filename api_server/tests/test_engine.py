@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 from fastapi.testclient import TestClient
@@ -312,6 +313,34 @@ class EngineTest(unittest.TestCase):
             "api_server.engine.metadata.version", return_value="4.57.1"
         ):
             vllm_engine._validate_runtime_dependencies()
+
+    def test_trt_settings_are_forwarded_to_model_factory(self) -> None:
+        backend = SimpleNamespace(
+            model=SimpleNamespace(flow=SimpleNamespace(inference_steps=None))
+        )
+        auto_model = Mock(return_value=backend)
+        module = SimpleNamespace(AutoModel=auto_model)
+        settings = replace(
+            make_settings(),
+            load_trt=True,
+            trt_engine_dir=Path("/tmp/cosyvoice-trt"),
+        )
+        engine = CosyVoiceEngine(settings, make_store())
+
+        with patch(
+            "api_server.engine.metadata.version", return_value="4.51.3"
+        ):
+            with patch.dict(sys.modules, {"cosyvoice.cli.cosyvoice": module}):
+                self.assertIs(engine._create_backend(), backend)
+
+        auto_model.assert_called_once_with(
+            model_dir=str(settings.model_dir),
+            load_vllm=False,
+            load_trt=True,
+            trt_engine_dir="/tmp/cosyvoice-trt",
+            fp16=False,
+        )
+        self.assertEqual(backend.model.flow.inference_steps, 6)
 
 
 if __name__ == "__main__":

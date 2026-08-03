@@ -12,7 +12,7 @@ The results are a single-GPU latency baseline, not a throughput or P95
 production SLO. The model ran alone on the selected GPU, but the host itself
 was shared.
 
-## Retained optimization
+## Retained default optimization
 
 The default `COSYVOICE_FLOW_STEPS` is now **6** rather than 8. The setting is
 still configurable from 1 to 100, so a deployment can return to 8 steps or
@@ -43,6 +43,50 @@ service:
 
 ```bash
 export COSYVOICE_FLOW_STEPS=8
+python -m api_server.main
+```
+
+## Retained opt-in optimization: TensorRT Flow estimator
+
+`COSYVOICE_LOAD_TRT=true` routes the FP32 Flow DiT estimator through a
+TensorRT plan. It is only supported with `COSYVOICE_FP16=false`; the vLLM LLM
+stage remains unchanged. The plan is stored in `COSYVOICE_TRT_ENGINE_DIR`
+(default: `<repo>/.cache/cosyvoice_trt`) rather than in the pretrained-model
+directory, so model artifacts are not modified.
+
+The plan was built from `flow.decoder.estimator.fp32.onnx` on the same H100
+with TensorRT available in the CUDA 12.8 container. The first build took about
+30 seconds and produced a 1.33 GB plan. It is an opt-in setting because it
+also added roughly 3.5 GB of TensorRT execution-context GPU allocation. Keep
+the cache on persistent local storage and rebuild it after changing GPU
+architecture, CUDA, or TensorRT.
+
+Using the same five prompts, warm-up count, seed, and six Flow steps as the
+baseline above:
+
+| Configuration | Mean latency | Median latency | P95 latency | Mean RTF |
+| --- | ---: | ---: | ---: | ---: |
+| PyTorch Flow baseline | 439.8 ms | 458.7 ms | 498.2 ms | 0.0706 |
+| TensorRT Flow, first measured run | 415.0 ms | 411.9 ms | 491.4 ms | 0.0666 |
+| Change vs. baseline | -5.6% | -10.2% | -1.4% | -5.6% |
+| TensorRT Flow, fully warm repeat | 404.5 ms | 412.6 ms | 449.5 ms | 0.0648 |
+| Change vs. baseline | -8.0% | -10.1% | -9.8% | -8.2% |
+
+Whisper large-v3-turbo gave the same per-prompt normalized character error
+rates for the baseline and TensorRT WAVs: `0, 0, 0.0435, 0, 0` (mean
+`0.0087`). The TensorRT service also completed 100 consecutive requests with
+no failures; GPU memory was 27,421 MiB before and 27,457 MiB after (+36 MiB),
+and the first/last 20-request means were 653.5/645.5 ms for the longer
+stability prompt. This is a relative smoke and stability check, not a MOS or
+production-SLO claim.
+
+Enable it with:
+
+```bash
+export COSYVOICE_LOAD_VLLM=true
+export COSYVOICE_LOAD_TRT=true
+export COSYVOICE_FP16=false
+export COSYVOICE_TRT_ENGINE_DIR=/path/to/persistent/cosyvoice-trt
 python -m api_server.main
 ```
 
@@ -88,7 +132,10 @@ and environment-specific logs. On the evaluation host they are stored under:
 
 Relevant files from this run are `unmasked_off/summary.json`,
 `unmasked_on/summary.json`, `unmasked_asr_comparison.json`,
-`flow6/summary.json`, `flow6_asr.json`, and `flow6_stability_100.json`.
+`flow6/summary.json`, `flow6_asr.json`, `flow6_stability_100.json`,
+`trt_baseline/summary.json`, `trt_fp32/summary.json`,
+`trt_fp32_repeat/summary.json`, `trt_asr_comparison.json`, and
+`trt_fp32_stability_100.json`.
 
 Before changing the default again, repeat the benchmark with a broader text,
 voice, and language set, listen to samples, and run the same long-request
