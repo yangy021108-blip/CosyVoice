@@ -448,7 +448,7 @@ def write_pairwise_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "first_inference_latency_ms", "second_inference_latency_ms",
         "client_relative_percent", "server_relative_percent", "second_faster",
     ]
-    with path.open("w", "w", newline="", encoding="utf-8") as handle:
+    with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
