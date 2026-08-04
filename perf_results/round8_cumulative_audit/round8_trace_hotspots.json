@@ -1,0 +1,1324 @@
+{
+  "trace": "/workspace/CosyVoice/cosyvoice_api_outputs/perf/round8_cumulative_audit_20260805/round8_profiler/round8_current.perfetto.json.gz",
+  "event_count": 985945,
+  "phases": {
+    "flow": {
+      "event_count": 2,
+      "total_stage_duration_ms": 1777.50125,
+      "top_operators": [
+        {
+          "category": "Trace",
+          "operator": "PyTorch Profiler (0)",
+          "calls": 1,
+          "total_us": 4594234.661,
+          "total_ms": 4594.234661,
+          "mean_us": 4594234.661,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.full_request",
+          "calls": 2,
+          "total_us": 4579973.540999999,
+          "total_ms": 4579.973540999999,
+          "mean_us": 2289986.7704999996,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.flow",
+          "calls": 2,
+          "total_us": 1777501.2319999998,
+          "total_ms": 1777.5012319999998,
+          "mean_us": 888750.6159999999,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::cat",
+          "calls": 2916,
+          "total_us": 540244.6039999994,
+          "total_ms": 540.2446039999993,
+          "mean_us": 185.2690685871054,
+          "input_shape_or_args": "[[[1, 87], [1, 153]], []]"
+        },
+        {
+          "category": "privateuse1_runtime",
+          "operator": "sdaaLaunchKernel",
+          "calls": 19428,
+          "total_us": 415003.0910000039,
+          "total_ms": 415.0030910000039,
+          "mean_us": 21.36108148033786,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::mul",
+          "calls": 4528,
+          "total_us": 363541.3559999999,
+          "total_ms": 363.5413559999999,
+          "mean_us": 80.28740194346288,
+          "input_shape_or_args": "[[1, 240, 80], [1, 240, 1]]"
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 175,
+          "total_us": 340251.741,
+          "total_ms": 340.251741,
+          "mean_us": 1944.2956628571428,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs)",
+          "calls": 36,
+          "total_us": 303661.114,
+          "total_ms": 303.661114,
+          "mean_us": 8435.030944444445,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "_C_sdaa_poc::flow_fused_norm",
+          "calls": 688,
+          "total_us": 266812.934,
+          "total_ms": 266.812934,
+          "mean_us": 387.80949709302325,
+          "input_shape_or_args": "[[2, 480, 1024], [2, 480, 1024], [2, 1024], [2, 1024], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::as_strided",
+          "calls": 24178,
+          "total_us": 266664.33899999986,
+          "total_ms": 266.66433899999987,
+          "mean_us": 11.029214120274624,
+          "input_shape_or_args": "[[1, 1], [], [], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::linear",
+          "calls": 964,
+          "total_us": 260256.59199999963,
+          "total_ms": 260.2565919999996,
+          "mean_us": 269.97571784232326,
+          "input_shape_or_args": "[[1, 192], [80, 192], [80]]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::copy_",
+          "calls": 4920,
+          "total_us": 252670.51600000038,
+          "total_ms": 252.6705160000004,
+          "mean_us": 51.355795934959424,
+          "input_shape_or_args": "[[80], [80], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::cat.out",
+          "calls": 1458,
+          "total_us": 234984.40499999997,
+          "total_ms": 234.98440499999998,
+          "mean_us": 161.16900205761314,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::addmm",
+          "calls": 964,
+          "total_us": 216870.7060000002,
+          "total_ms": 216.8707060000002,
+          "mean_us": 224.96961203319523,
+          "input_shape_or_args": "[[80], [1, 192], [192, 80], [], []]"
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 176,
+          "total_us": 208195.27800000008,
+          "total_ms": 208.1952780000001,
+          "mean_us": 1182.9277159090914,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::copy_",
+          "calls": 4878,
+          "total_us": 200800.18199999986,
+          "total_ms": 200.80018199999986,
+          "mean_us": 41.164448954489515,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 1359,
+          "total_us": 162763.5830000002,
+          "total_ms": 162.76358300000018,
+          "mean_us": 119.7671692420899,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 463,
+          "total_us": 138185.83199999988,
+          "total_ms": 138.1858319999999,
+          "mean_us": 298.45752051835825,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::mul.out",
+          "calls": 2264,
+          "total_us": 128720.50499999993,
+          "total_ms": 128.72050499999995,
+          "mean_us": 56.85534673144873,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::select",
+          "calls": 9734,
+          "total_us": 120334.0459999996,
+          "total_ms": 120.33404599999959,
+          "mean_us": 12.362240189028107,
+          "input_shape_or_args": "[[9], [], []]"
+        }
+      ],
+      "top_sdaa_kernels": [
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 175,
+          "total_us": 340251.741,
+          "total_ms": 340.251741,
+          "mean_us": 1944.2956628571428,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs)",
+          "calls": 36,
+          "total_us": 303661.114,
+          "total_ms": 303.661114,
+          "mean_us": 8435.030944444445,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 176,
+          "total_us": 208195.27800000008,
+          "total_ms": 208.1952780000001,
+          "mean_us": 1182.9277159090914,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 1359,
+          "total_us": 162763.5830000002,
+          "total_ms": 162.76358300000018,
+          "mean_us": 119.7671692420899,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 463,
+          "total_us": 138185.83199999988,
+          "total_ms": 138.1858319999999,
+          "mean_us": 298.45752051835825,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecodnn::ual::slave::teco_slave_copy_stride_dma_2D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs)",
+          "calls": 3577,
+          "total_us": 102119.35800000021,
+          "total_ms": 102.1193580000002,
+          "mean_us": 28.548883980989714,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void slave_gemm_m8n256k128_fp16<1536u, false, false>(GemmM8N256K128Args)",
+          "calls": 351,
+          "total_us": 61687.009999999995,
+          "total_ms": 61.687009999999994,
+          "mean_us": 175.74646723646723,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void slave_gemm_m8n256k128_fp16<1024u, false, false>(GemmM8N256K128Args)",
+          "calls": 351,
+          "total_us": 51753.11799999998,
+          "total_ms": 51.75311799999998,
+          "mean_us": 147.44478062678058,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 2172,
+          "total_us": 50349.63799999998,
+          "total_ms": 50.34963799999998,
+          "mean_us": 23.181232965009197,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecolmk_slave_fused_norm_under_2048<3>(FusedNormArgs)",
+          "calls": 1374,
+          "total_us": 48681.60999999998,
+          "total_ms": 48.68160999999998,
+          "mean_us": 35.430574963609885,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 1722,
+          "total_us": 44631.466000000015,
+          "total_ms": 44.63146600000002,
+          "mean_us": 25.918389082462262,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "_ZN7tecodnn3ual5slave35teco_slave_broadcast_two_dims_firstIDF16_Li0EEEvNS0_3ops13BroadcastArgsE",
+          "calls": 1744,
+          "total_us": 36923.67599999996,
+          "total_ms": 36.923675999999965,
+          "mean_us": 21.171832568807318,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "_Z42tecolmk_slave_ffn_layer_general_activationIL16ActivationMode_t1ELb0EEviiPDF16_S1_f",
+          "calls": 351,
+          "total_us": 31444.88699999998,
+          "total_ms": 31.44488699999998,
+          "mean_us": 89.58657264957259,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs)",
+          "calls": 736,
+          "total_us": 29814.53600000003,
+          "total_ms": 29.81453600000003,
+          "mean_us": 40.50888043478265,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecolmk_slave_src_kind3_4_dst_kind7_permute<1536u, true>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+          "calls": 351,
+          "total_us": 12263.326999999997,
+          "total_ms": 12.263326999999997,
+          "mean_us": 34.93825356125355,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_concat_tensor_all_less_than_16B(tecodnn::ual::ops::ConcatArgs)",
+          "calls": 719,
+          "total_us": 11763.494000000012,
+          "total_ms": 11.763494000000012,
+          "mean_us": 16.360909596662047,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecolmk_slave_src_kind3_4_dst_kind7_permute<1024u, false>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+          "calls": 351,
+          "total_us": 11354.235,
+          "total_ms": 11.354235000000001,
+          "mean_us": 32.34824786324786,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecolmk_slave_ffn_layer_general_fused_for_small<(tecolmkDataPresion_t)1, 128u, false, true, (ActivationMode_t)1>(FfnLayerGeneralV2Args, int, int, float)",
+          "calls": 176,
+          "total_us": 9071.038000000002,
+          "total_ms": 9.071038000000001,
+          "mean_us": 51.53998863636365,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_groupconv_pad_filter(tecodnn::ual::ops::GroupConvPadFilterArgs)",
+          "calls": 32,
+          "total_us": 7697.899000000001,
+          "total_ms": 7.697899000000001,
+          "mean_us": 240.55934375000004,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecodnn::ual::slave::teco_slave_copy_stride_dma_3D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs)",
+          "calls": 32,
+          "total_us": 5119.017000000001,
+          "total_ms": 5.119017,
+          "mean_us": 159.96928125000002,
+          "input_shape_or_args": ""
+        }
+      ],
+      "target_operation_totals": {
+        "layer_norm": {
+          "calls": 2293,
+          "total_ms": 340.0190760000008,
+          "mean_us": 148.28568512865274
+        },
+        "copy_stride": {
+          "calls": 83961,
+          "total_ms": 1210.744353000011,
+          "mean_us": 14.420318397827694
+        },
+        "gemm": {
+          "calls": 7145,
+          "total_ms": 1075.1135389999954,
+          "mean_us": 150.47075423372925
+        },
+        "transpose_contiguous": {
+          "calls": 4716,
+          "total_ms": 78.57436000000008,
+          "mean_us": 16.661229855810028
+        },
+        "host_device_copy": {
+          "calls": 148,
+          "total_ms": 33.75465199999998,
+          "mean_us": 228.07197297297284
+        },
+        "cat": {
+          "calls": 8747,
+          "total_ms": 929.9446949999976,
+          "mean_us": 106.31584486109496
+        },
+        "synchronization": {
+          "calls": 296,
+          "total_ms": 0.7406610000000002,
+          "mean_us": 2.502233108108109
+        },
+        "gate_multiply": {
+          "calls": 13366,
+          "total_ms": 567.1673459999994,
+          "mean_us": 42.43358865778838
+        },
+        "conv1d": {
+          "calls": 252,
+          "total_ms": 338.9669919999999,
+          "mean_us": 1345.1071111111107
+        },
+        "rope": {
+          "calls": 198,
+          "total_ms": 6.2325219999999995,
+          "mean_us": 31.477383838383833
+        },
+        "ffn": {
+          "calls": 879,
+          "total_ms": 56.852188000000055,
+          "mean_us": 64.67825711035273
+        },
+        "attention": {
+          "calls": 351,
+          "total_ms": 548.4470190000001,
+          "mean_us": 1562.52711965812
+        }
+      }
+    },
+    "hift": {
+      "event_count": 2,
+      "total_stage_duration_ms": 285.9095,
+      "top_operators": [
+        {
+          "category": "Trace",
+          "operator": "PyTorch Profiler (0)",
+          "calls": 1,
+          "total_us": 4594234.661,
+          "total_ms": 4594.234661,
+          "mean_us": 4594234.661,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.full_request",
+          "calls": 2,
+          "total_us": 4579973.540999999,
+          "total_ms": 4579.973540999999,
+          "mean_us": 2289986.7704999996,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.hift",
+          "calls": 2,
+          "total_us": 285909.462,
+          "total_ms": 285.909462,
+          "mean_us": 142954.731,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::copy_",
+          "calls": 1226,
+          "total_us": 100938.52999999988,
+          "total_ms": 100.93852999999989,
+          "mean_us": 82.33159053833596,
+          "input_shape_or_args": "[[1, 80, 3], [1, 80, 3], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::conv1d",
+          "calls": 332,
+          "total_us": 90440.44999999998,
+          "total_ms": 90.44044999999998,
+          "mean_us": 272.4109939759036,
+          "input_shape_or_args": "[[1, 80, 309], [512, 80, 4], [512], [], [], [], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::copy_",
+          "calls": 1220,
+          "total_us": 88499.0650000001,
+          "total_ms": 88.4990650000001,
+          "mean_us": 72.54021721311484,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::to",
+          "calls": 860,
+          "total_us": 88100.26299999998,
+          "total_ms": 88.10026299999998,
+          "mean_us": 102.44216627906974,
+          "input_shape_or_args": "[[512, 1, 1], [], [], [], [], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::_to_copy",
+          "calls": 654,
+          "total_us": 87292.1679999999,
+          "total_ms": 87.2921679999999,
+          "mean_us": 133.47426299694175,
+          "input_shape_or_args": "[[1, 80, 3], [], [], [], [], [], []]"
+        },
+        {
+          "category": "privateuse1_runtime",
+          "operator": "sdaaMemcpyAsync",
+          "calls": 176,
+          "total_us": 59768.69999999995,
+          "total_ms": 59.76869999999995,
+          "mean_us": 339.5948863636361,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaart::sdaaMemcpyAsyncH2D",
+          "calls": 166,
+          "total_us": 56946.26,
+          "total_ms": 56.94626,
+          "mean_us": 343.04975903614456,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::mul",
+          "calls": 1238,
+          "total_us": 51980.86399999992,
+          "total_ms": 51.98086399999992,
+          "mean_us": 41.987773828756,
+          "input_shape_or_args": "[[512, 80, 4], [512, 1, 1]]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::convolution",
+          "calls": 176,
+          "total_us": 36755.22000000001,
+          "total_ms": 36.75522000000001,
+          "mean_us": 208.8364772727273,
+          "input_shape_or_args": "[[1, 80, 309], [512, 80, 4], [512], [], [], [], [], [], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::_weight_norm",
+          "calls": 164,
+          "total_us": 35785.864,
+          "total_ms": 35.785864000000004,
+          "mean_us": 218.20648780487807,
+          "input_shape_or_args": "[[512, 80, 4], [512, 1, 1], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::convolution",
+          "calls": 176,
+          "total_us": 33716.59699999999,
+          "total_ms": 33.716596999999986,
+          "mean_us": 191.5715738636363,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::_weight_norm",
+          "calls": 164,
+          "total_us": 33709.603,
+          "total_ms": 33.709603,
+          "mean_us": 205.5463597560976,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::cat",
+          "calls": 332,
+          "total_us": 32940.618,
+          "total_ms": 32.940618,
+          "mean_us": 99.21872891566265,
+          "input_shape_or_args": "[[[1, 80, 306], [1, 80, 3]], []]"
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 2,
+          "total_us": 31989.059999999998,
+          "total_ms": 31.98906,
+          "mean_us": 15994.529999999999,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::pow",
+          "calls": 432,
+          "total_us": 20305.456999999995,
+          "total_ms": 20.305456999999993,
+          "mean_us": 47.00337268518518,
+          "input_shape_or_args": "[[1, 256, 2448], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::reciprocal",
+          "calls": 432,
+          "total_us": 18894.661000000004,
+          "total_ms": 18.894661000000003,
+          "mean_us": 43.73764120370371,
+          "input_shape_or_args": "[[1, 256, 1]]"
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs)",
+          "calls": 212,
+          "total_us": 18720.001999999997,
+          "total_ms": 18.720001999999997,
+          "mean_us": 88.30189622641508,
+          "input_shape_or_args": ""
+        }
+      ],
+      "top_sdaa_kernels": [
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 2,
+          "total_us": 31989.059999999998,
+          "total_ms": 31.98906,
+          "mean_us": 15994.529999999999,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs)",
+          "calls": 212,
+          "total_us": 18720.001999999997,
+          "total_ms": 18.720001999999997,
+          "mean_us": 88.30189622641508,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs)",
+          "calls": 118,
+          "total_us": 18143.393000000004,
+          "total_ms": 18.143393000000003,
+          "mean_us": 153.7575677966102,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_transpose_4b(tecodnn::ual::ops::TransposeArgs)",
+          "calls": 109,
+          "total_us": 18124.281,
+          "total_ms": 18.124281,
+          "mean_us": 166.27780733944954,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 287,
+          "total_us": 15992.611000000004,
+          "total_ms": 15.992611000000004,
+          "mean_us": 55.72338327526134,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_unary_ops_without_alpha_ft32(tecodnn::ual::ops::UnaryOpsArgs)",
+          "calls": 150,
+          "total_us": 12582.600999999997,
+          "total_ms": 12.582600999999997,
+          "mean_us": 83.88400666666665,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs)",
+          "calls": 168,
+          "total_us": 11208.277999999997,
+          "total_ms": 11.208277999999996,
+          "mean_us": 66.71594047619045,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_mul(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 144,
+          "total_us": 9960.310999999998,
+          "total_ms": 9.960310999999997,
+          "mean_us": 69.16882638888887,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_add(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 146,
+          "total_us": 8629.790000000005,
+          "total_ms": 8.629790000000005,
+          "mean_us": 59.10815068493154,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 491,
+          "total_us": 7652.733999999996,
+          "total_ms": 7.652733999999996,
+          "mean_us": 15.586016293279014,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_broadcast_add(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 110,
+          "total_us": 5372.264,
+          "total_ms": 5.372264,
+          "mean_us": 48.83876363636364,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_convolution_forward_nodilation_nostride_little_weight_db(tecodnn::ual::ops::ConvFwdArgs)",
+          "calls": 50,
+          "total_us": 3479.356,
+          "total_ms": 3.479356,
+          "mean_us": 69.58712,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecodnn::ual::slave::teco_slave_broadcast_expand_last_dim<short>(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 6,
+          "total_us": 3475.791,
+          "total_ms": 3.475791,
+          "mean_us": 579.2985,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_transpose_2d_aligned(tecodnn::ual::ops::TransposeArgs)",
+          "calls": 200,
+          "total_us": 3464.479999999999,
+          "total_ms": 3.464479999999999,
+          "mean_us": 17.322399999999995,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_add(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 91,
+          "total_us": 3371.609999999999,
+          "total_ms": 3.371609999999999,
+          "mean_us": 37.05065934065933,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_reduce_tensor_ND_norm2_float(tecodnn::ual::ops::ReduceTensorArgs)",
+          "calls": 164,
+          "total_us": 2956.6260000000007,
+          "total_ms": 2.956626000000001,
+          "mean_us": 18.028207317073175,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecodnn::ual::slave::teco_slave_broadcast_two_dims_second<float, 1>(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 128,
+          "total_us": 2482.9410000000016,
+          "total_ms": 2.4829410000000016,
+          "mean_us": 19.397976562500013,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_remainder(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 2,
+          "total_us": 2473.38,
+          "total_ms": 2.47338,
+          "mean_us": 1236.69,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 1,
+          "total_us": 1936.874,
+          "total_ms": 1.936874,
+          "mean_us": 1936.874,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecodnn::ual::slave::teco_slave_broadcast_two_dims_first<float, 1>(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 48,
+          "total_us": 1164.5079999999998,
+          "total_ms": 1.1645079999999999,
+          "mean_us": 24.26058333333333,
+          "input_shape_or_args": ""
+        }
+      ],
+      "target_operation_totals": {
+        "copy_stride": {
+          "calls": 8910,
+          "total_ms": 327.1311629999996,
+          "mean_us": 36.71505757575753
+        },
+        "host_device_copy": {
+          "calls": 527,
+          "total_ms": 125.84659500000006,
+          "mean_us": 238.79809297912726
+        },
+        "synchronization": {
+          "calls": 968,
+          "total_ms": 0.8973440000000003,
+          "mean_us": 0.9270082644628101
+        },
+        "cat": {
+          "calls": 1159,
+          "total_ms": 75.50386099999997,
+          "mean_us": 65.1456954270923
+        },
+        "layer_norm": {
+          "calls": 1315,
+          "total_ms": 125.36926500000001,
+          "mean_us": 95.33784410646389
+        },
+        "gate_multiply": {
+          "calls": 3507,
+          "total_ms": 95.97348899999987,
+          "mean_us": 27.366264328485848
+        },
+        "conv1d": {
+          "calls": 1162,
+          "total_ms": 182.03562099999996,
+          "mean_us": 156.65716092943197
+        },
+        "transpose_contiguous": {
+          "calls": 1624,
+          "total_ms": 47.81073300000003,
+          "mean_us": 29.440106527093615
+        },
+        "gemm": {
+          "calls": 44,
+          "total_ms": 36.963085,
+          "mean_us": 840.0701136363637
+        },
+        "rope": {
+          "calls": 456,
+          "total_ms": 14.098130000000005,
+          "mean_us": 30.916951754385977
+        },
+        "attention": {
+          "calls": 1,
+          "total_ms": 1.936874,
+          "mean_us": 1936.874
+        },
+        "ffn": {
+          "calls": 1,
+          "total_ms": 0.09150799999999999,
+          "mean_us": 91.508
+        }
+      }
+    },
+    "full_request": {
+      "event_count": 2,
+      "total_stage_duration_ms": 4579.9735,
+      "top_operators": [
+        {
+          "category": "Trace",
+          "operator": "PyTorch Profiler (0)",
+          "calls": 1,
+          "total_us": 4594234.661,
+          "total_ms": 4594.234661,
+          "mean_us": 4594234.661,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.full_request",
+          "calls": 2,
+          "total_us": 4579973.540999999,
+          "total_ms": 4579.973540999999,
+          "mean_us": 2289986.7704999996,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.flow",
+          "calls": 2,
+          "total_us": 1777501.2319999998,
+          "total_ms": 1777.5012319999998,
+          "mean_us": 888750.6159999999,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::cat",
+          "calls": 3248,
+          "total_us": 573185.222,
+          "total_ms": 573.185222,
+          "mean_us": 176.47328263546797,
+          "input_shape_or_args": "[[[1, 87], [1, 153]], []]"
+        },
+        {
+          "category": "privateuse1_runtime",
+          "operator": "sdaaLaunchKernel",
+          "calls": 22894,
+          "total_us": 431023.866000004,
+          "total_ms": 431.023866000004,
+          "mean_us": 18.826935703677993,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::mul",
+          "calls": 5766,
+          "total_us": 415522.21999999875,
+          "total_ms": 415.52221999999875,
+          "mean_us": 72.06420742282323,
+          "input_shape_or_args": "[[1, 240, 80], [1, 240, 1]]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::copy_",
+          "calls": 6164,
+          "total_us": 355043.37499999953,
+          "total_ms": 355.0433749999995,
+          "mean_us": 57.599509247241976,
+          "input_shape_or_args": "[[1, 153], [1, 153], []]"
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 176,
+          "total_us": 342188.615,
+          "total_ms": 342.18861499999997,
+          "mean_us": 1944.2534943181818,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs)",
+          "calls": 154,
+          "total_us": 321804.5070000001,
+          "total_ms": 321.8045070000001,
+          "mean_us": 2089.6396558441566,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::copy_",
+          "calls": 6114,
+          "total_us": 290457.95399999956,
+          "total_ms": 290.4579539999996,
+          "mean_us": 47.50702551521092,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "user_annotation",
+          "operator": "cosyvoice.hift",
+          "calls": 2,
+          "total_us": 285909.462,
+          "total_ms": 285.909462,
+          "mean_us": 142954.731,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::as_strided",
+          "calls": 25690,
+          "total_us": 284439.0999999995,
+          "total_ms": 284.4390999999995,
+          "mean_us": 11.071977423121819,
+          "input_shape_or_args": "[[1, 25], [], [], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "_C_sdaa_poc::flow_fused_norm",
+          "calls": 688,
+          "total_us": 266812.934,
+          "total_ms": 266.812934,
+          "mean_us": 387.80949709302325,
+          "input_shape_or_args": "[[2, 480, 1024], [2, 480, 1024], [2, 1024], [2, 1024], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::linear",
+          "calls": 970,
+          "total_us": 261785.42499999964,
+          "total_ms": 261.78542499999963,
+          "mean_us": 269.8818814432986,
+          "input_shape_or_args": "[[1, 192], [80, 192], [80]]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "sdaa::cat.out",
+          "calls": 1624,
+          "total_us": 247246.395,
+          "total_ms": 247.24639499999998,
+          "mean_us": 152.24531711822658,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::addmm",
+          "calls": 968,
+          "total_us": 217224.84300000017,
+          "total_ms": 217.22484300000016,
+          "mean_us": 224.4058295454547,
+          "input_shape_or_args": "[[80], [1, 192], [192, 80], [], []]"
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 176,
+          "total_us": 208195.27800000008,
+          "total_ms": 208.1952780000001,
+          "mean_us": 1182.9277159090914,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 1360,
+          "total_us": 162887.53600000017,
+          "total_ms": 162.88753600000015,
+          "mean_us": 119.77024705882366,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::to",
+          "calls": 2344,
+          "total_us": 152615.98900000006,
+          "total_ms": 152.61598900000007,
+          "mean_us": 65.10921032423211,
+          "input_shape_or_args": "[[1, 25], [], [], [], [], []]"
+        },
+        {
+          "category": "cpu_op",
+          "operator": "aten::_to_copy",
+          "calls": 1708,
+          "total_us": 150185.79700000002,
+          "total_ms": 150.185797,
+          "mean_us": 87.93079449648714,
+          "input_shape_or_args": "[[1, 153], [], [], [], [], [], []]"
+        }
+      ],
+      "top_sdaa_kernels": [
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 176,
+          "total_us": 342188.615,
+          "total_ms": 342.18861499999997,
+          "mean_us": 1944.2534943181818,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs)",
+          "calls": 154,
+          "total_us": 321804.5070000001,
+          "total_ms": 321.8045070000001,
+          "mean_us": 2089.6396558441566,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+          "calls": 176,
+          "total_us": 208195.27800000008,
+          "total_ms": 208.1952780000001,
+          "mean_us": 1182.9277159090914,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 1360,
+          "total_us": 162887.53600000017,
+          "total_ms": 162.88753600000015,
+          "mean_us": 119.77024705882366,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 464,
+          "total_us": 138305.70099999988,
+          "total_ms": 138.30570099999989,
+          "mean_us": 298.072631465517,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecodnn::ual::slave::teco_slave_copy_stride_dma_2D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs)",
+          "calls": 3594,
+          "total_us": 102948.55900000024,
+          "total_ms": 102.94855900000024,
+          "mean_us": 28.64456288258215,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs)",
+          "calls": 2460,
+          "total_us": 66357.26000000002,
+          "total_ms": 66.35726000000003,
+          "mean_us": 26.97449593495936,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void slave_gemm_m8n256k128_fp16<1536u, false, false>(GemmM8N256K128Args)",
+          "calls": 352,
+          "total_us": 61867.35499999999,
+          "total_ms": 61.86735499999999,
+          "mean_us": 175.75953124999998,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs)",
+          "calls": 2216,
+          "total_us": 52321.13000000001,
+          "total_ms": 52.32113000000001,
+          "mean_us": 23.610618231046935,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void slave_gemm_m8n256k128_fp16<1024u, false, false>(GemmM8N256K128Args)",
+          "calls": 352,
+          "total_us": 51901.556999999986,
+          "total_ms": 51.90155699999998,
+          "mean_us": 147.4476051136363,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecolmk_slave_fused_norm_under_2048<3>(FusedNormArgs)",
+          "calls": 1376,
+          "total_us": 48751.63699999997,
+          "total_ms": 48.751636999999974,
+          "mean_us": 35.42996874999998,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs)",
+          "calls": 908,
+          "total_us": 41062.65900000001,
+          "total_ms": 41.062659000000004,
+          "mean_us": 45.22319273127754,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "_ZN7tecodnn3ual5slave35teco_slave_broadcast_two_dims_firstIDF16_Li0EEEvNS0_3ops13BroadcastArgsE",
+          "calls": 1800,
+          "total_us": 37910.38199999997,
+          "total_ms": 37.91038199999997,
+          "mean_us": 21.061323333333316,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs)",
+          "calls": 2,
+          "total_us": 31989.059999999998,
+          "total_ms": 31.98906,
+          "mean_us": 15994.529999999999,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "_Z42tecolmk_slave_ffn_layer_general_activationIL16ActivationMode_t1ELb0EEviiPDF16_S1_f",
+          "calls": 352,
+          "total_us": 31536.394999999982,
+          "total_ms": 31.53639499999998,
+          "mean_us": 89.59203124999995,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs)",
+          "calls": 284,
+          "total_us": 21416.684999999998,
+          "total_ms": 21.416684999999998,
+          "mean_us": 75.41086267605633,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_transpose_4b(tecodnn::ual::ops::TransposeArgs)",
+          "calls": 119,
+          "total_us": 18370.103999999996,
+          "total_ms": 18.370103999999994,
+          "mean_us": 154.37062184873946,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_unary_ops_without_alpha_ft32(tecodnn::ual::ops::UnaryOpsArgs)",
+          "calls": 232,
+          "total_us": 13301.189999999999,
+          "total_ms": 13.301189999999998,
+          "mean_us": 57.332715517241375,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "void tecolmk_slave_src_kind3_4_dst_kind7_permute<1536u, true>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+          "calls": 352,
+          "total_us": 12297.875999999998,
+          "total_ms": 12.297875999999999,
+          "mean_us": 34.93714772727272,
+          "input_shape_or_args": ""
+        },
+        {
+          "category": "kernel",
+          "operator": "tecodnn::ual::slave::teco_slave_concat_tensor_all_less_than_16B(tecodnn::ual::ops::ConcatArgs)",
+          "calls": 720,
+          "total_us": 11779.931000000011,
+          "total_ms": 11.779931000000012,
+          "mean_us": 16.361015277777792,
+          "input_shape_or_args": ""
+        }
+      ],
+      "target_operation_totals": {
+        "copy_stride": {
+          "calls": 92978,
+          "total_ms": 1543.218825999996,
+          "mean_us": 16.597677149433157
+        },
+        "host_device_copy": {
+          "calls": 772,
+          "total_ms": 163.97685999999985,
+          "mean_us": 212.4052590673573
+        },
+        "synchronization": {
+          "calls": 1322,
+          "total_ms": 1.6823509999999988,
+          "mean_us": 1.2725801815431155
+        },
+        "layer_norm": {
+          "calls": 3608,
+          "total_ms": 465.3883409999995,
+          "mean_us": 128.98789939024377
+        },
+        "gemm": {
+          "calls": 7188,
+          "total_ms": 1111.7433319999952,
+          "mean_us": 154.66657373400045
+        },
+        "transpose_contiguous": {
+          "calls": 6340,
+          "total_ms": 126.38509300000023,
+          "mean_us": 19.93455725552054
+        },
+        "cat": {
+          "calls": 9910,
+          "total_ms": 1005.4884009999976,
+          "mean_us": 101.46199808274446
+        },
+        "gate_multiply": {
+          "calls": 16874,
+          "total_ms": 663.1558460000034,
+          "mean_us": 39.30045312314824
+        },
+        "conv1d": {
+          "calls": 1414,
+          "total_ms": 521.0026130000009,
+          "mean_us": 368.4601223479497
+        },
+        "rope": {
+          "calls": 654,
+          "total_ms": 20.330652000000008,
+          "mean_us": 31.086623853211023
+        },
+        "ffn": {
+          "calls": 880,
+          "total_ms": 56.94369600000006,
+          "mean_us": 64.70874545454552
+        },
+        "attention": {
+          "calls": 352,
+          "total_ms": 550.3838930000002,
+          "mean_us": 1563.590605113637
+        }
+      }
+    }
+  },
+  "cpu_gap_analysis": {
+    "definition": "Gaps >=100us between merged aten:: CPU-op intervals during a cosyvoice.full_request annotation. Nested profiler events and untraced Python/device work mean this is not proof of CPU idleness.",
+    "request_count": 2,
+    "total_visible_gap_ms_ge_100us": 2643.522,
+    "largest_visible_gap_ms": 1382.02625,
+    "visible_gap_count_with_kernel_overlap": 19,
+    "kernel_overlap_during_visible_gaps_ms": 129.89275,
+    "mean_visible_gap_ms_per_request": 1321.761,
+    "per_request": [
+      {
+        "request_duration_ms": 2472.81575,
+        "aten_covered_ms": 862.65475,
+        "visible_gap_count_ge_100us": 15,
+        "visible_gap_ms_ge_100us": 1450.339,
+        "largest_visible_gap_ms": 1382.02625,
+        "kernel_overlap_during_visible_gaps_ms": 64.8
+      },
+      {
+        "request_duration_ms": 2107.15775,
+        "aten_covered_ms": 760.13275,
+        "visible_gap_count_ge_100us": 16,
+        "visible_gap_ms_ge_100us": 1193.183,
+        "largest_visible_gap_ms": 1125.0855,
+        "kernel_overlap_during_visible_gaps_ms": 65.09275
+      }
+    ]
+  },
+  "method_note": "Operator durations are summed profiler durations for events whose interval overlaps the named phase. Nested CPU events are therefore not additive wall time; use stage duration for wall-clock attribution."
+}

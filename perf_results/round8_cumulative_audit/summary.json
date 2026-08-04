@@ -1,0 +1,302 @@
+{
+  "metadata": {
+    "runtime_commit": "5e894c2fe521def0ea83ef2b1db3adae04e92f9b",
+    "performance_code_commit": "8b242615e22faed849f23ba17ffd09c7ec2aa9c9",
+    "initial_api_pid": 195866,
+    "device": "18",
+    "model_dir": "/workspace/model",
+    "model_alias": "cosyvoice3-0.5b",
+    "server_command": "python -m api_server.main",
+    "benchmark_command": "python tools/cosyvoice_evalscope_perf.py",
+    "run_order": [
+      "baseline_sdaa",
+      "round5_final",
+      "round8_final",
+      "round8_final",
+      "round5_final",
+      "baseline_sdaa",
+      "round8_final",
+      "baseline_sdaa",
+      "round5_final",
+      "round5_final",
+      "baseline_sdaa",
+      "round8_final"
+    ],
+    "requests_per_run": 25,
+    "warmup_per_run": 5,
+    "parallel": 1,
+    "seed": 20260726,
+    "variant_flags": {
+      "baseline_sdaa": {
+        "COSYVOICE_SDAA_FLOW_FLASH_ATTN": "0",
+        "COSYVOICE_SDAA_FLOW_UNMASKED_FASTPATH": "0",
+        "COSYVOICE_SDAA_HIFT_REFLECTION_PAD": "0",
+        "COSYVOICE_SDAA_HIFT_NEAREST_UPSAMPLE": "0",
+        "COSYVOICE_SDAA_HIFT_CONTIGUOUS_UPSAMPLE": "0",
+        "COSYVOICE_SDAA_FLOW_STEPS": "10",
+        "COSYVOICE_VLLM_SDAA_GRAPH": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_NORM": "0",
+        "COSYVOICE_SDAA_FLOW_PRECOMPUTE_ROPE": "0",
+        "COSYVOICE_SDAA_HIFT_F0_FP32": "0",
+        "COSYVOICE_SDAA_FLOW_TRUST_UNMASKED_MASK": "0",
+        "COSYVOICE_SDAA_HIFT_CONV_STFT": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_FFN": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_FFN_MIN_ROWS": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_GEMM": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_GEMM_MIN_ROWS": "0"
+      },
+      "round5_final": {
+        "COSYVOICE_SDAA_FLOW_FLASH_ATTN": "1",
+        "COSYVOICE_SDAA_FLOW_UNMASKED_FASTPATH": "1",
+        "COSYVOICE_SDAA_HIFT_REFLECTION_PAD": "1",
+        "COSYVOICE_SDAA_HIFT_NEAREST_UPSAMPLE": "1",
+        "COSYVOICE_SDAA_HIFT_CONTIGUOUS_UPSAMPLE": "1",
+        "COSYVOICE_SDAA_FLOW_STEPS": "8",
+        "COSYVOICE_VLLM_SDAA_GRAPH": "1",
+        "COSYVOICE_SDAA_FLOW_FUSED_NORM": "1",
+        "COSYVOICE_SDAA_FLOW_PRECOMPUTE_ROPE": "1",
+        "COSYVOICE_SDAA_HIFT_F0_FP32": "1",
+        "COSYVOICE_SDAA_FLOW_TRUST_UNMASKED_MASK": "0",
+        "COSYVOICE_SDAA_HIFT_CONV_STFT": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_FFN": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_FFN_MIN_ROWS": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_GEMM": "0",
+        "COSYVOICE_SDAA_FLOW_FUSED_GEMM_MIN_ROWS": "0"
+      },
+      "round8_final": {
+        "COSYVOICE_SDAA_FLOW_FLASH_ATTN": "1",
+        "COSYVOICE_SDAA_FLOW_UNMASKED_FASTPATH": "1",
+        "COSYVOICE_SDAA_HIFT_REFLECTION_PAD": "1",
+        "COSYVOICE_SDAA_HIFT_NEAREST_UPSAMPLE": "1",
+        "COSYVOICE_SDAA_HIFT_CONTIGUOUS_UPSAMPLE": "1",
+        "COSYVOICE_SDAA_FLOW_STEPS": "8",
+        "COSYVOICE_VLLM_SDAA_GRAPH": "1",
+        "COSYVOICE_SDAA_FLOW_FUSED_NORM": "1",
+        "COSYVOICE_SDAA_FLOW_PRECOMPUTE_ROPE": "1",
+        "COSYVOICE_SDAA_HIFT_F0_FP32": "1",
+        "COSYVOICE_SDAA_FLOW_TRUST_UNMASKED_MASK": "1",
+        "COSYVOICE_SDAA_HIFT_CONV_STFT": "1",
+        "COSYVOICE_SDAA_FLOW_FUSED_FFN": "1",
+        "COSYVOICE_SDAA_FLOW_FUSED_FFN_MIN_ROWS": "800",
+        "COSYVOICE_SDAA_FLOW_FUSED_GEMM": "1",
+        "COSYVOICE_SDAA_FLOW_FUSED_GEMM_MIN_ROWS": "512"
+      }
+    }
+  },
+  "variants": {
+    "baseline_sdaa": {
+      "sample_count": 100,
+      "client_latency_seconds": {
+        "mean": 4.528016451545991,
+        "stddev": 0.4421933223789536,
+        "p50": 4.462848578579724,
+        "p95": 5.310836473456584,
+        "min": 3.77039346517995,
+        "max": 5.420516377314925
+      },
+      "server_inference_ms": {
+        "mean": 4521.56976,
+        "stddev": 441.8962811677661,
+        "p50": 4457.1085,
+        "p95": 5302.9384,
+        "min": 3762.868,
+        "max": 5414.006
+      },
+      "real_time_factor": {
+        "mean": 0.69620289,
+        "stddev": 0.027922326207649024,
+        "p50": 0.6999525,
+        "p95": 0.73202425,
+        "min": 0.64877,
+        "max": 0.768502
+      },
+      "queue_wait_ms": {
+        "mean": 0.04154,
+        "stddev": 0.015305257563690625,
+        "p50": 0.0375,
+        "p95": 0.0741,
+        "min": 0.021,
+        "max": 0.082
+      },
+      "request_throughput_per_second": 0.22063017601662271,
+      "audio_throughput_realtime_x": 1.433213623403981,
+      "audio_seconds_generated": 649.5999999999999,
+      "quality_retry_count": 0,
+      "run_count": 4
+    },
+    "round5_final": {
+      "sample_count": 100,
+      "client_latency_seconds": {
+        "mean": 2.6109394961269574,
+        "stddev": 0.3153953710927059,
+        "p50": 2.5198384234681726,
+        "p95": 3.1177452109521258,
+        "min": 2.2434470602311194,
+        "max": 3.707619907334447
+      },
+      "server_inference_ms": {
+        "mean": 2602.20773,
+        "stddev": 314.7346845669085,
+        "p50": 2511.9085,
+        "p95": 3103.1491,
+        "min": 2235.05,
+        "max": 3696.685
+      },
+      "real_time_factor": {
+        "mean": 0.40035055999999997,
+        "stddev": 0.02536938743594633,
+        "p50": 0.3952305,
+        "p95": 0.44398495,
+        "min": 0.367762,
+        "max": 0.499552
+      },
+      "queue_wait_ms": {
+        "mean": 0.0705,
+        "stddev": 0.023303660786679118,
+        "p50": 0.08,
+        "p95": 0.09419999999999999,
+        "min": 0.021,
+        "max": 0.114
+      },
+      "request_throughput_per_second": 0.38228479794450276,
+      "audio_throughput_realtime_x": 2.4833220474474897,
+      "audio_seconds_generated": 649.5999999999999,
+      "quality_retry_count": 0,
+      "run_count": 4
+    },
+    "round8_final": {
+      "sample_count": 100,
+      "client_latency_seconds": {
+        "mean": 2.307173582757823,
+        "stddev": 0.22146553688424847,
+        "p50": 2.2502418775111437,
+        "p95": 2.644511589012109,
+        "min": 1.9815975441597402,
+        "max": 2.873380874749273
+      },
+      "server_inference_ms": {
+        "mean": 2298.71826,
+        "stddev": 221.04980309942678,
+        "p50": 2241.124,
+        "p95": 2634.2745999999997,
+        "min": 1974.811,
+        "max": 2864.627
+      },
+      "real_time_factor": {
+        "mean": 0.35402977,
+        "stddev": 0.014799930020893116,
+        "p50": 0.350338,
+        "p95": 0.38723535000000003,
+        "min": 0.327614,
+        "max": 0.401898
+      },
+      "queue_wait_ms": {
+        "mean": 0.07554999999999999,
+        "stddev": 0.01962804373874536,
+        "p50": 0.082,
+        "p95": 0.09805,
+        "min": 0.021,
+        "max": 0.107
+      },
+      "request_throughput_per_second": 0.4325448414701614,
+      "audio_throughput_realtime_x": 2.809811290190168,
+      "audio_seconds_generated": 649.5999999999999,
+      "quality_retry_count": 0,
+      "run_count": 4
+    }
+  },
+  "comparisons": {
+    "baseline_sdaa_to_round5_final": {
+      "first": "baseline_sdaa",
+      "second": "round5_final",
+      "pair_count": 100,
+      "client_mean_change_percent": -42.33811815689164,
+      "client_p50_change_percent": -43.53744297840155,
+      "client_p95_change_percent": -41.29464865780501,
+      "server_mean_change_percent": -42.44901951927421,
+      "throughput_change_percent": 73.26949778424718,
+      "paired_client_relative_percent": {
+        "mean": -42.33649919546127,
+        "median": -43.649143777528124,
+        "bootstrap_95_ci": [
+          -43.025886547133354,
+          -41.62198064924199
+        ],
+        "second_faster_count": 100
+      },
+      "paired_server_relative_percent": {
+        "mean": -42.44767632996834,
+        "median": -43.756183329888586,
+        "bootstrap_95_ci": [
+          -43.13102274980808,
+          -41.71281324928625
+        ],
+        "second_faster_count": 100
+      }
+    },
+    "round5_final_to_round8_final": {
+      "first": "round5_final",
+      "second": "round8_final",
+      "pair_count": 100,
+      "client_mean_change_percent": -11.634352838115847,
+      "client_p50_change_percent": -10.698961625720848,
+      "client_p95_change_percent": -15.178713779356467,
+      "server_mean_change_percent": -11.66276875213187,
+      "throughput_change_percent": 13.147277578365802,
+      "paired_client_relative_percent": {
+        "mean": -11.35769038730605,
+        "median": -10.594735059232331,
+        "bootstrap_95_ci": [
+          -12.182596737328693,
+          -10.676687519215417
+        ],
+        "second_faster_count": 100
+      },
+      "paired_server_relative_percent": {
+        "mean": -11.385709965540928,
+        "median": -10.615966068673693,
+        "bootstrap_95_ci": [
+          -12.225008158501087,
+          -10.711245833559476
+        ],
+        "second_faster_count": 100
+      }
+    },
+    "baseline_sdaa_to_round8_final": {
+      "first": "baseline_sdaa",
+      "second": "round8_final",
+      "pair_count": 100,
+      "client_mean_change_percent": -49.04670494361633,
+      "client_p50_change_percent": -49.578350287043115,
+      "client_p95_change_percent": -50.20536591120239,
+      "server_mean_change_percent": -49.161057287325804,
+      "throughput_change_percent": 96.04971961658258,
+      "paired_client_relative_percent": {
+        "mean": -48.971665439546506,
+        "median": -49.999025099061086,
+        "bootstrap_95_ci": [
+          -49.46328405973257,
+          -48.43685704849034
+        ],
+        "second_faster_count": 100
+      },
+      "paired_server_relative_percent": {
+        "mean": -49.0862818130895,
+        "median": -50.17390371041444,
+        "bootstrap_95_ci": [
+          -49.58024004053613,
+          -48.56046198747537
+        ],
+        "second_faster_count": 100
+      }
+    }
+  },
+  "raw_samples_path": "raw_samples.jsonl",
+  "pairwise_results_path": "pairwise_results.csv",
+  "diagnostics_dir": "/workspace/CosyVoice/cosyvoice_api_outputs/perf/round8_cumulative_audit_20260805/runs",
+  "aggregation": {
+    "source": "completed raw_samples.jsonl",
+    "raw_sample_count": 300,
+    "bootstrap_resamples": 10000
+  }
+}

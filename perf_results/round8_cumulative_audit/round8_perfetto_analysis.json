@@ -1,0 +1,1521 @@
+{
+  "trace": "/workspace/CosyVoice/cosyvoice_api_outputs/perf/round8_cumulative_audit_20260805/round8_profiler/round8_current.perfetto.json.gz",
+  "stage_events": [
+    {
+      "name": "cosyvoice.full_request",
+      "duration_us": 2472815.803,
+      "duration_ms": 2472.815803
+    },
+    {
+      "name": "cosyvoice.flow",
+      "duration_us": 940001.298,
+      "duration_ms": 940.0012979999999
+    },
+    {
+      "name": "cosyvoice.hift",
+      "duration_us": 145735.044,
+      "duration_ms": 145.735044
+    },
+    {
+      "name": "cosyvoice.clear_accelerator_cache",
+      "duration_us": 154.045,
+      "duration_ms": 0.154045
+    },
+    {
+      "name": "cosyvoice.full_request",
+      "duration_us": 2107157.738,
+      "duration_ms": 2107.157738
+    },
+    {
+      "name": "cosyvoice.flow",
+      "duration_us": 837499.934,
+      "duration_ms": 837.499934
+    },
+    {
+      "name": "cosyvoice.hift",
+      "duration_us": 140174.418,
+      "duration_ms": 140.174418
+    },
+    {
+      "name": "cosyvoice.clear_accelerator_cache",
+      "duration_us": 165.336,
+      "duration_ms": 0.165336
+    }
+  ],
+  "request_breakdown": [
+    {
+      "request_index": 0,
+      "full_request_ms": 2472.815803,
+      "phases_ms": {
+        "cosyvoice.flow": 940.0012979999999,
+        "cosyvoice.hift": 145.735044,
+        "cosyvoice.clear_accelerator_cache": 0.154045
+      },
+      "unlabeled_or_llm_ms": 1386.925416
+    },
+    {
+      "request_index": 1,
+      "full_request_ms": 2107.157738,
+      "phases_ms": {
+        "cosyvoice.flow": 837.499934,
+        "cosyvoice.hift": 140.174418,
+        "cosyvoice.clear_accelerator_cache": 0.165336
+      },
+      "unlabeled_or_llm_ms": 1129.3180499999999
+    }
+  ],
+  "top_events_by_category": {
+    "cpu_op": [
+      {
+        "name": "aten::cat",
+        "calls": 3248,
+        "total_us": 573185.222,
+        "total_ms": 573.185222,
+        "mean_us": 176.47328263546797
+      },
+      {
+        "name": "aten::mul",
+        "calls": 5766,
+        "total_us": 415522.21999999875,
+        "total_ms": 415.52221999999875,
+        "mean_us": 72.06420742282323
+      },
+      {
+        "name": "aten::copy_",
+        "calls": 6164,
+        "total_us": 355043.37499999953,
+        "total_ms": 355.0433749999995,
+        "mean_us": 57.599509247241976
+      },
+      {
+        "name": "sdaa::copy_",
+        "calls": 6114,
+        "total_us": 290457.95399999956,
+        "total_ms": 290.4579539999996,
+        "mean_us": 47.50702551521092
+      },
+      {
+        "name": "aten::as_strided",
+        "calls": 25690,
+        "total_us": 284439.0999999995,
+        "total_ms": 284.4390999999995,
+        "mean_us": 11.071977423121819
+      },
+      {
+        "name": "_C_sdaa_poc::flow_fused_norm",
+        "calls": 688,
+        "total_us": 266812.934,
+        "total_ms": 266.812934,
+        "mean_us": 387.80949709302325
+      },
+      {
+        "name": "aten::linear",
+        "calls": 970,
+        "total_us": 261785.42499999964,
+        "total_ms": 261.78542499999963,
+        "mean_us": 269.8818814432986
+      },
+      {
+        "name": "sdaa::cat.out",
+        "calls": 1624,
+        "total_us": 247246.395,
+        "total_ms": 247.24639499999998,
+        "mean_us": 152.24531711822658
+      },
+      {
+        "name": "aten::addmm",
+        "calls": 968,
+        "total_us": 217224.84300000017,
+        "total_ms": 217.22484300000016,
+        "mean_us": 224.4058295454547
+      },
+      {
+        "name": "aten::to",
+        "calls": 2344,
+        "total_us": 152615.98900000006,
+        "total_ms": 152.61598900000007,
+        "mean_us": 65.10921032423211
+      },
+      {
+        "name": "aten::_to_copy",
+        "calls": 1708,
+        "total_us": 150185.79700000002,
+        "total_ms": 150.185797,
+        "mean_us": 87.93079449648714
+      },
+      {
+        "name": "sdaa::mul.out",
+        "calls": 2882,
+        "total_us": 140867.43300000005,
+        "total_ms": 140.86743300000006,
+        "mean_us": 48.87835981956976
+      },
+      {
+        "name": "aten::empty",
+        "calls": 9536,
+        "total_us": 120558.51199999932,
+        "total_ms": 120.55851199999933,
+        "mean_us": 12.642461409395901
+      },
+      {
+        "name": "aten::select",
+        "calls": 9740,
+        "total_us": 120414.5969999996,
+        "total_ms": 120.4145969999996,
+        "mean_us": 12.362894969199138
+      },
+      {
+        "name": "aten::neg",
+        "calls": 1408,
+        "total_us": 118961.34799999981,
+        "total_ms": 118.9613479999998,
+        "mean_us": 84.48959374999987
+      },
+      {
+        "name": "tecodnn::tecodnnConcatEx",
+        "calls": 1624,
+        "total_us": 113982.7910000001,
+        "total_ms": 113.9827910000001,
+        "mean_us": 70.18644766009858
+      },
+      {
+        "name": "aten::conv1d",
+        "calls": 404,
+        "total_us": 108782.89499999995,
+        "total_ms": 108.78289499999994,
+        "mean_us": 269.26459158415827
+      },
+      {
+        "name": "aten::slice",
+        "calls": 8038,
+        "total_us": 102770.26000000005,
+        "total_ms": 102.77026000000005,
+        "mean_us": 12.785551132122425
+      },
+      {
+        "name": "sdaa::addmm.out",
+        "calls": 484,
+        "total_us": 95476.82500000007,
+        "total_ms": 95.47682500000008,
+        "mean_us": 197.26616735537203
+      },
+      {
+        "name": "aten::stack",
+        "calls": 720,
+        "total_us": 92140.97300000003,
+        "total_ms": 92.14097300000003,
+        "mean_us": 127.97357361111115
+      },
+      {
+        "name": "sdaart::sdaaMemcpyAsyncH2D",
+        "calls": 184,
+        "total_us": 73453.22499999996,
+        "total_ms": 73.45322499999996,
+        "mean_us": 399.2023097826085
+      },
+      {
+        "name": "sdaa::copy_stride",
+        "calls": 3640,
+        "total_us": 73226.85300000006,
+        "total_ms": 73.22685300000006,
+        "mean_us": 20.117267307692323
+      },
+      {
+        "name": "aten::add_",
+        "calls": 1726,
+        "total_us": 69313.4280000001,
+        "total_ms": 69.3134280000001,
+        "mean_us": 40.15841714947862
+      },
+      {
+        "name": "aten::view",
+        "calls": 6192,
+        "total_us": 68141.66299999996,
+        "total_ms": 68.14166299999995,
+        "mean_us": 11.004790536175703
+      },
+      {
+        "name": "aten::empty_strided",
+        "calls": 5000,
+        "total_us": 65544.51200000002,
+        "total_ms": 65.54451200000001,
+        "mean_us": 13.108902400000003
+      },
+      {
+        "name": "tecodnn::tecodnnExpand",
+        "calls": 558,
+        "total_us": 59495.22000000001,
+        "total_ms": 59.49522000000001,
+        "mean_us": 106.62225806451615
+      },
+      {
+        "name": "sdaa::as_strided",
+        "calls": 25664,
+        "total_us": 52754.35599999988,
+        "total_ms": 52.75435599999988,
+        "mean_us": 2.055578086034908
+      },
+      {
+        "name": "aten::add",
+        "calls": 1224,
+        "total_us": 51876.67000000005,
+        "total_ms": 51.87667000000005,
+        "mean_us": 42.382900326797426
+      },
+      {
+        "name": "aten::_copy_from",
+        "calls": 1504,
+        "total_us": 50437.582999999984,
+        "total_ms": 50.43758299999998,
+        "mean_us": 33.53562699468084
+      },
+      {
+        "name": "sdaa::empty.memory_format",
+        "calls": 9352,
+        "total_us": 50025.23799999998,
+        "total_ms": 50.02523799999998,
+        "mean_us": 5.349148631308809
+      },
+      {
+        "name": "aten::reshape",
+        "calls": 3590,
+        "total_us": 48647.84799999999,
+        "total_ms": 48.64784799999999,
+        "mean_us": 13.550932590529245
+      },
+      {
+        "name": "sdaa::add_.Tensor",
+        "calls": 1726,
+        "total_us": 47972.01300000006,
+        "total_ms": 47.972013000000054,
+        "mean_us": 27.79375028968717
+      },
+      {
+        "name": "tecodnn::tecodnnCopyStride",
+        "calls": 3640,
+        "total_us": 47321.18699999996,
+        "total_ms": 47.32118699999996,
+        "mean_us": 13.000326098901088
+      },
+      {
+        "name": "sdaa::neg.out",
+        "calls": 704,
+        "total_us": 45652.17899999995,
+        "total_ms": 45.652178999999954,
+        "mean_us": 64.84684517045447
+      },
+      {
+        "name": "aten::transpose",
+        "calls": 3390,
+        "total_us": 45398.416,
+        "total_ms": 45.398416,
+        "mean_us": 13.391863126843656
+      },
+      {
+        "name": "aten::convolution",
+        "calls": 212,
+        "total_us": 45228.10799999999,
+        "total_ms": 45.22810799999999,
+        "mean_us": 213.34013207547167
+      },
+      {
+        "name": "_C_sdaa::blas_gemm_fusion",
+        "calls": 1360,
+        "total_us": 44433.352999999996,
+        "total_ms": 44.433353,
+        "mean_us": 32.67158308823529
+      },
+      {
+        "name": "aten::unsqueeze",
+        "calls": 3080,
+        "total_us": 42344.98399999999,
+        "total_ms": 42.34498399999999,
+        "mean_us": 13.748371428571426
+      },
+      {
+        "name": "sdaa::convolution",
+        "calls": 212,
+        "total_us": 41476.51999999998,
+        "total_ms": 41.47651999999998,
+        "mean_us": 195.64396226415087
+      },
+      {
+        "name": "aten::empty_like",
+        "calls": 2602,
+        "total_us": 38424.848000000035,
+        "total_ms": 38.42484800000003,
+        "mean_us": 14.767428132206009
+      },
+      {
+        "name": "sdaa::add.Tensor",
+        "calls": 1224,
+        "total_us": 36322.166999999965,
+        "total_ms": 36.322166999999965,
+        "mean_us": 29.674973039215658
+      },
+      {
+        "name": "aten::_weight_norm",
+        "calls": 164,
+        "total_us": 35785.864,
+        "total_ms": 35.785864000000004,
+        "mean_us": 218.20648780487807
+      },
+      {
+        "name": "sdaa::_copy_from",
+        "calls": 1504,
+        "total_us": 34961.10399999999,
+        "total_ms": 34.96110399999999,
+        "mean_us": 23.245414893617017
+      },
+      {
+        "name": "aten::silu",
+        "calls": 768,
+        "total_us": 34648.01499999998,
+        "total_ms": 34.64801499999998,
+        "mean_us": 45.114602864583304
+      },
+      {
+        "name": "sdaa::_weight_norm",
+        "calls": 164,
+        "total_us": 33709.603,
+        "total_ms": 33.709603,
+        "mean_us": 205.5463597560976
+      },
+      {
+        "name": "aten::chunk",
+        "calls": 368,
+        "total_us": 33186.05900000002,
+        "total_ms": 33.18605900000002,
+        "mean_us": 90.17950815217398
+      },
+      {
+        "name": "tecodnn::tecodnnAddTensorEx",
+        "calls": 2964,
+        "total_us": 32478.24300000004,
+        "total_ms": 32.47824300000004,
+        "mean_us": 10.95757186234819
+      },
+      {
+        "name": "aten::split",
+        "calls": 368,
+        "total_us": 32384.20099999999,
+        "total_ms": 32.38420099999999,
+        "mean_us": 88.00054619565215
+      },
+      {
+        "name": "aten::narrow",
+        "calls": 2190,
+        "total_us": 31053.397000000008,
+        "total_ms": 31.053397000000007,
+        "mean_us": 14.179633333333337
+      },
+      {
+        "name": "tecodnn::tecodnnMulTensorEx",
+        "calls": 2800,
+        "total_us": 29604.843000000033,
+        "total_ms": 29.604843000000034,
+        "mean_us": 10.573158214285726
+      },
+      {
+        "name": "sdaa::empty_strided",
+        "calls": 4848,
+        "total_us": 25701.26500000007,
+        "total_ms": 25.701265000000067,
+        "mean_us": 5.3014160478548
+      },
+      {
+        "name": "aten::unbind",
+        "calls": 704,
+        "total_us": 21622.500000000025,
+        "total_ms": 21.622500000000027,
+        "mean_us": 30.713778409090946
+      },
+      {
+        "name": "tecodnn::tecodnnTransformDataType",
+        "calls": 2274,
+        "total_us": 20642.957999999995,
+        "total_ms": 20.642957999999997,
+        "mean_us": 9.077817941952505
+      },
+      {
+        "name": "tecoblas::tecoblasHgemm",
+        "calls": 484,
+        "total_us": 20582.52,
+        "total_ms": 20.58252,
+        "mean_us": 42.52586776859504
+      },
+      {
+        "name": "aten::pow",
+        "calls": 432,
+        "total_us": 20305.456999999995,
+        "total_ms": 20.305456999999993,
+        "mean_us": 47.00337268518518
+      },
+      {
+        "name": "_C_sdaa_poc::mm_encoder_flash_attention_fixed",
+        "calls": 352,
+        "total_us": 19431.642000000003,
+        "total_ms": 19.431642000000004,
+        "mean_us": 55.20352840909092
+      },
+      {
+        "name": "aten::reciprocal",
+        "calls": 432,
+        "total_us": 18894.661000000004,
+        "total_ms": 18.894661000000003,
+        "mean_us": 43.73764120370371
+      },
+      {
+        "name": "aten::concat",
+        "calls": 162,
+        "total_us": 17929.45300000001,
+        "total_ms": 17.92945300000001,
+        "mean_us": 110.67563580246919
+      },
+      {
+        "name": "aten::div",
+        "calls": 390,
+        "total_us": 17571.105999999996,
+        "total_ms": 17.571105999999997,
+        "mean_us": 45.05411794871794
+      },
+      {
+        "name": "aten::norm",
+        "calls": 328,
+        "total_us": 17027.15400000001,
+        "total_ms": 17.02715400000001,
+        "mean_us": 51.91205487804881
+      },
+      {
+        "name": "_C_sdaa::ffnv2",
+        "calls": 352,
+        "total_us": 16336.262999999997,
+        "total_ms": 16.336263,
+        "mean_us": 46.40983806818181
+      },
+      {
+        "name": "aten::norm_except_dim",
+        "calls": 164,
+        "total_us": 16203.015000000001,
+        "total_ms": 16.203015,
+        "mean_us": 98.79887195121952
+      },
+      {
+        "name": "sdaa::view",
+        "calls": 6192,
+        "total_us": 15410.390999999963,
+        "total_ms": 15.410390999999963,
+        "mean_us": 2.4887582364341028
+      },
+      {
+        "name": "sdaa::norm_except_dim",
+        "calls": 164,
+        "total_us": 14930.197000000007,
+        "total_ms": 14.930197000000007,
+        "mean_us": 91.0377865853659
+      },
+      {
+        "name": "aten::sin",
+        "calls": 364,
+        "total_us": 13388.414,
+        "total_ms": 13.388414000000001,
+        "mean_us": 36.781357142857146
+      },
+      {
+        "name": "aten::native_layer_norm",
+        "calls": 64,
+        "total_us": 10984.497999999998,
+        "total_ms": 10.984497999999999,
+        "mean_us": 171.63278124999997
+      },
+      {
+        "name": "aten::_reshape_alias",
+        "calls": 706,
+        "total_us": 9829.265000000007,
+        "total_ms": 9.829265000000007,
+        "mean_us": 13.922471671388111
+      },
+      {
+        "name": "sdaa::silu.out",
+        "calls": 384,
+        "total_us": 9186.779,
+        "total_ms": 9.186779,
+        "mean_us": 23.923903645833335
+      },
+      {
+        "name": "aten::t",
+        "calls": 486,
+        "total_us": 8280.484000000008,
+        "total_ms": 8.280484000000008,
+        "mean_us": 17.038032921810714
+      },
+      {
+        "name": "aten::exp",
+        "calls": 54,
+        "total_us": 7502.991999999999,
+        "total_ms": 7.502991999999999,
+        "mean_us": 138.94429629629627
+      },
+      {
+        "name": "aten::sub",
+        "calls": 72,
+        "total_us": 6755.369,
+        "total_ms": 6.755369,
+        "mean_us": 93.82456944444444
+      },
+      {
+        "name": "aten::layer_norm",
+        "calls": 32,
+        "total_us": 6535.992999999999,
+        "total_ms": 6.535992999999999,
+        "mean_us": 204.24978124999996
+      },
+      {
+        "name": "aten::pad",
+        "calls": 48,
+        "total_us": 6344.452999999999,
+        "total_ms": 6.344452999999999,
+        "mean_us": 132.17610416666665
+      },
+      {
+        "name": "tecodnn::tecodnnTranspose",
+        "calls": 646,
+        "total_us": 6186.054000000003,
+        "total_ms": 6.186054000000003,
+        "mean_us": 9.575934984520128
+      },
+      {
+        "name": "aten::constant_pad_nd",
+        "calls": 46,
+        "total_us": 6028.496,
+        "total_ms": 6.0284960000000005,
+        "mean_us": 131.0542608695652
+      },
+      {
+        "name": "tecodnn::tecodnnUnaryOps",
+        "calls": 682,
+        "total_us": 6013.0470000000005,
+        "total_ms": 6.013047,
+        "mean_us": 8.816784457478006
+      },
+      {
+        "name": "tecodnn::tecodnnNegTensor",
+        "calls": 704,
+        "total_us": 5845.235999999999,
+        "total_ms": 5.845235999999999,
+        "mean_us": 8.302892045454543
+      },
+      {
+        "name": "sdaa::constant_pad_nd",
+        "calls": 46,
+        "total_us": 5503.399,
+        "total_ms": 5.503399,
+        "mean_us": 119.63910869565218
+      },
+      {
+        "name": "sdaa::norm.out",
+        "calls": 164,
+        "total_us": 4623.447000000003,
+        "total_ms": 4.623447000000003,
+        "mean_us": 28.191750000000017
+      },
+      {
+        "name": "tecodnn::tecodnnActivationForward",
+        "calls": 406,
+        "total_us": 4498.905999999998,
+        "total_ms": 4.498905999999998,
+        "mean_us": 11.08104926108374
+      },
+      {
+        "name": "aten::arange",
+        "calls": 72,
+        "total_us": 4252.768000000001,
+        "total_ms": 4.2527680000000005,
+        "mean_us": 59.06622222222224
+      },
+      {
+        "name": "sdaa::div.out",
+        "calls": 194,
+        "total_us": 4159.097999999999,
+        "total_ms": 4.159097999999999,
+        "mean_us": 21.43864948453608
+      },
+      {
+        "name": "sdaa::native_layer_norm",
+        "calls": 32,
+        "total_us": 4154.902000000001,
+        "total_ms": 4.154902000000001,
+        "mean_us": 129.84068750000003
+      },
+      {
+        "name": "aten::dropout",
+        "calls": 352,
+        "total_us": 4036.2450000000017,
+        "total_ms": 4.036245000000002,
+        "mean_us": 11.46660511363637
+      },
+      {
+        "name": "aten::squeeze",
+        "calls": 234,
+        "total_us": 3692.5689999999995,
+        "total_ms": 3.6925689999999993,
+        "mean_us": 15.7802094017094
+      },
+      {
+        "name": "sdaart::sdaaMemcpyAsyncD2H",
+        "calls": 8,
+        "total_us": 3655.4520000000007,
+        "total_ms": 3.655452000000001,
+        "mean_us": 456.9315000000001
+      },
+      {
+        "name": "aten::permute",
+        "calls": 292,
+        "total_us": 3592.8279999999995,
+        "total_ms": 3.5928279999999995,
+        "mean_us": 12.304205479452053
+      },
+      {
+        "name": "sdaa::sin.out",
+        "calls": 182,
+        "total_us": 3276.975999999999,
+        "total_ms": 3.276975999999999,
+        "mean_us": 18.005362637362634
+      },
+      {
+        "name": "aten::zeros",
+        "calls": 206,
+        "total_us": 3205.376000000003,
+        "total_ms": 3.205376000000003,
+        "mean_us": 15.560077669902928
+      },
+      {
+        "name": "aten::fill_",
+        "calls": 92,
+        "total_us": 3193.750999999999,
+        "total_ms": 3.193750999999999,
+        "mean_us": 34.714684782608686
+      },
+      {
+        "name": "aten::cos",
+        "calls": 72,
+        "total_us": 2937.521,
+        "total_ms": 2.9375210000000003,
+        "mean_us": 40.79890277777778
+      },
+      {
+        "name": "sdaa::pow.Tensor_Scalar_out",
+        "calls": 144,
+        "total_us": 2887.754,
+        "total_ms": 2.8877539999999997,
+        "mean_us": 20.05384722222222
+      },
+      {
+        "name": "sdaa::reciprocal.out",
+        "calls": 144,
+        "total_us": 2726.5690000000004,
+        "total_ms": 2.7265690000000005,
+        "mean_us": 18.934506944444447
+      },
+      {
+        "name": "aten::mish",
+        "calls": 64,
+        "total_us": 2699.3790000000013,
+        "total_ms": 2.6993790000000013,
+        "mean_us": 42.17779687500002
+      },
+      {
+        "name": "tecodnn::tecodnnConvolutionForward",
+        "calls": 208,
+        "total_us": 2649.0620000000013,
+        "total_ms": 2.649062000000001,
+        "mean_us": 12.735875000000005
+      },
+      {
+        "name": "aten::einsum",
+        "calls": 16,
+        "total_us": 2457.552,
+        "total_ms": 2.457552,
+        "mean_us": 153.597
+      },
+      {
+        "name": "sdaa::sub.out",
+        "calls": 36,
+        "total_us": 2431.4799999999996,
+        "total_ms": 2.4314799999999996,
+        "mean_us": 67.54111111111109
+      },
+      {
+        "name": "sdaa::fill_.Scalar",
+        "calls": 88,
+        "total_us": 2321.2000000000007,
+        "total_ms": 2.3212000000000006,
+        "mean_us": 26.377272727272736
+      },
+      {
+        "name": "aten::clone",
+        "calls": 24,
+        "total_us": 2173.514,
+        "total_ms": 2.173514,
+        "mean_us": 90.56308333333334
+      },
+      {
+        "name": "sdaa::_reshape_alias",
+        "calls": 706,
+        "total_us": 1979.4490000000003,
+        "total_ms": 1.9794490000000002,
+        "mean_us": 2.803752124645893
+      }
+    ],
+    "gpu_memcpy": [
+      {
+        "name": "Memcpy DtoH (Device->Pageable)",
+        "calls": 18,
+        "total_us": 4068.6780000000003,
+        "total_ms": 4.068678,
+        "mean_us": 226.0376666666667
+      },
+      {
+        "name": "Memcpy HtoD (Pageable->Device)",
+        "calls": 198,
+        "total_us": 3777.388,
+        "total_ms": 3.7773879999999997,
+        "mean_us": 19.077717171717172
+      },
+      {
+        "name": "Memcpy DtoD (Device->Device)",
+        "calls": 54,
+        "total_us": 190.32100000000003,
+        "total_ms": 0.19032100000000002,
+        "mean_us": 3.5244629629629634
+      }
+    ],
+    "kernel": [
+      {
+        "name": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+        "calls": 176,
+        "total_us": 342188.615,
+        "total_ms": 342.18861499999997,
+        "mean_us": 1944.2534943181818
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs)",
+        "calls": 154,
+        "total_us": 321804.5070000001,
+        "total_ms": 321.8045070000001,
+        "mean_us": 2089.6396558441566
+      },
+      {
+        "name": "tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs)",
+        "calls": 176,
+        "total_us": 208195.27800000008,
+        "total_ms": 208.1952780000001,
+        "mean_us": 1182.9277159090914
+      },
+      {
+        "name": "tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs)",
+        "calls": 1360,
+        "total_us": 162887.53600000017,
+        "total_ms": 162.88753600000015,
+        "mean_us": 119.77024705882366
+      },
+      {
+        "name": "tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs)",
+        "calls": 464,
+        "total_us": 138305.70099999988,
+        "total_ms": 138.30570099999989,
+        "mean_us": 298.072631465517
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_copy_stride_dma_2D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs)",
+        "calls": 3594,
+        "total_us": 102948.55900000024,
+        "total_ms": 102.94855900000024,
+        "mean_us": 28.64456288258215
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 2460,
+        "total_us": 66357.26000000002,
+        "total_ms": 66.35726000000003,
+        "mean_us": 26.97449593495936
+      },
+      {
+        "name": "void slave_gemm_m8n256k128_fp16<1536u, false, false>(GemmM8N256K128Args)",
+        "calls": 352,
+        "total_us": 61867.35499999999,
+        "total_ms": 61.86735499999999,
+        "mean_us": 175.75953124999998
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2216,
+        "total_us": 52321.13000000001,
+        "total_ms": 52.32113000000001,
+        "mean_us": 23.610618231046935
+      },
+      {
+        "name": "void slave_gemm_m8n256k128_fp16<1024u, false, false>(GemmM8N256K128Args)",
+        "calls": 352,
+        "total_us": 51901.556999999986,
+        "total_ms": 51.90155699999998,
+        "mean_us": 147.4476051136363
+      },
+      {
+        "name": "void tecolmk_slave_fused_norm_under_2048<3>(FusedNormArgs)",
+        "calls": 1376,
+        "total_us": 48751.63699999997,
+        "total_ms": 48.751636999999974,
+        "mean_us": 35.42996874999998
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs)",
+        "calls": 908,
+        "total_us": 41062.65900000001,
+        "total_ms": 41.062659000000004,
+        "mean_us": 45.22319273127754
+      },
+      {
+        "name": "_ZN7tecodnn3ual5slave35teco_slave_broadcast_two_dims_firstIDF16_Li0EEEvNS0_3ops13BroadcastArgsE",
+        "calls": 1800,
+        "total_us": 37910.38199999997,
+        "total_ms": 37.91038199999997,
+        "mean_us": 21.061323333333316
+      },
+      {
+        "name": "tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs)",
+        "calls": 2,
+        "total_us": 31989.059999999998,
+        "total_ms": 31.98906,
+        "mean_us": 15994.529999999999
+      },
+      {
+        "name": "_Z42tecolmk_slave_ffn_layer_general_activationIL16ActivationMode_t1ELb0EEviiPDF16_S1_f",
+        "calls": 352,
+        "total_us": 31536.394999999982,
+        "total_ms": 31.53639499999998,
+        "mean_us": 89.59203124999995
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs)",
+        "calls": 284,
+        "total_us": 21416.684999999998,
+        "total_ms": 21.416684999999998,
+        "mean_us": 75.41086267605633
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_transpose_4b(tecodnn::ual::ops::TransposeArgs)",
+        "calls": 119,
+        "total_us": 18370.103999999996,
+        "total_ms": 18.370103999999994,
+        "mean_us": 154.37062184873946
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_unary_ops_without_alpha_ft32(tecodnn::ual::ops::UnaryOpsArgs)",
+        "calls": 232,
+        "total_us": 13301.189999999999,
+        "total_ms": 13.301189999999998,
+        "mean_us": 57.332715517241375
+      },
+      {
+        "name": "void tecolmk_slave_src_kind3_4_dst_kind7_permute<1536u, true>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "calls": 352,
+        "total_us": 12297.875999999998,
+        "total_ms": 12.297875999999999,
+        "mean_us": 34.93714772727272
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_concat_tensor_all_less_than_16B(tecodnn::ual::ops::ConcatArgs)",
+        "calls": 720,
+        "total_us": 11779.931000000011,
+        "total_ms": 11.779931000000012,
+        "mean_us": 16.361015277777792
+      },
+      {
+        "name": "void tecolmk_slave_src_kind3_4_dst_kind7_permute<1024u, false>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",
+        "calls": 352,
+        "total_us": 11385.861,
+        "total_ms": 11.385861,
+        "mean_us": 32.34619602272728
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_mul(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 144,
+        "total_us": 9960.310999999998,
+        "total_ms": 9.960310999999997,
+        "mean_us": 69.16882638888887
+      },
+      {
+        "name": "void tecolmk_slave_ffn_layer_general_fused_for_small<(tecolmkDataPresion_t)1, 128u, false, true, (ActivationMode_t)1>(FfnLayerGeneralV2Args, int, int, float)",
+        "calls": 176,
+        "total_us": 9071.038000000002,
+        "total_ms": 9.071038000000001,
+        "mean_us": 51.53998863636365
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_add(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 150,
+        "total_us": 8660.078000000003,
+        "total_ms": 8.660078000000004,
+        "mean_us": 57.73385333333336
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_groupconv_pad_filter(tecodnn::ual::ops::GroupConvPadFilterArgs)",
+        "calls": 32,
+        "total_us": 7697.899000000001,
+        "total_ms": 7.697899000000001,
+        "mean_us": 240.55934375000004
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_broadcast_add(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 208,
+        "total_us": 7597.758000000001,
+        "total_ms": 7.597758000000001,
+        "mean_us": 36.52768269230769
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_transpose_2d_aligned(tecodnn::ual::ops::TransposeArgs)",
+        "calls": 234,
+        "total_us": 5482.425999999999,
+        "total_ms": 5.4824259999999985,
+        "mean_us": 23.429170940170934
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_copy_stride_dma_3D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs)",
+        "calls": 32,
+        "total_us": 5119.017000000001,
+        "total_ms": 5.119017,
+        "mean_us": 159.96928125000002
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_float_add(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 740,
+        "total_us": 4902.480999999999,
+        "total_ms": 4.902480999999999,
+        "mean_us": 6.624974324324323
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_add(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 126,
+        "total_us": 4206.6630000000005,
+        "total_ms": 4.206663000000001,
+        "mean_us": 33.38621428571429
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_activation_forward_ft16(tecodnn::ual::ops::ActivationFwdArgs)",
+        "calls": 396,
+        "total_us": 4125.973000000002,
+        "total_ms": 4.125973000000002,
+        "mean_us": 10.419123737373742
+      },
+      {
+        "name": "tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N256(tecoblas::ual::ops::GemmWrapArgs)",
+        "calls": 18,
+        "total_us": 3964.529,
+        "total_ms": 3.964529,
+        "mean_us": 220.25161111111112
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_broadcast_expand_last_dim<short>(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 22,
+        "total_us": 3606.5069999999996,
+        "total_ms": 3.6065069999999997,
+        "mean_us": 163.93213636363635
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_convolution_forward_nodilation_nostride_little_weight_db(tecodnn::ual::ops::ConvFwdArgs)",
+        "calls": 50,
+        "total_us": 3479.356,
+        "total_ms": 3.479356,
+        "mean_us": 69.58712
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_broadcast_expand_2d(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 464,
+        "total_us": 3204.627000000001,
+        "total_ms": 3.204627000000001,
+        "mean_us": 6.906523706896554
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_reduce_tensor_ND_norm2_float(tecodnn::ual::ops::ReduceTensorArgs)",
+        "calls": 166,
+        "total_us": 2976.964000000001,
+        "total_ms": 2.976964000000001,
+        "mean_us": 17.93351807228916
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_neg_tensor_half(tecodnn::ual::ops::NegTensorArgs)",
+        "calls": 704,
+        "total_us": 2859.018000000004,
+        "total_ms": 2.8590180000000043,
+        "mean_us": 4.061105113636369
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_broadcast_two_dims_second<float, 1>(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 128,
+        "total_us": 2482.9410000000016,
+        "total_ms": 2.4829410000000016,
+        "mean_us": 19.397976562500013
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_remainder(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2,
+        "total_us": 2473.38,
+        "total_ms": 2.47338,
+        "mean_us": 1236.69
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_layernorm_fwd(tecodnn::ual::ops::LayerNormFwdArgs)",
+        "calls": 32,
+        "total_us": 1989.676,
+        "total_ms": 1.989676,
+        "mean_us": 62.177375
+      },
+      {
+        "name": "_ZN7tecodnn3ual5slave28teco_slave_mish_forward_perfIDF16_EEvNS0_3ops11MishFwdArgsE",
+        "calls": 32,
+        "total_us": 1935.177,
+        "total_ms": 1.935177,
+        "mean_us": 60.47428125
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_unary_ops_with_alpha_ft32(tecodnn::ual::ops::UnaryOpsArgs)",
+        "calls": 342,
+        "total_us": 1187.311,
+        "total_ms": 1.187311,
+        "mean_us": 3.4716695906432746
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_broadcast_two_dims_first<float, 1>(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 48,
+        "total_us": 1164.5079999999998,
+        "total_ms": 1.1645079999999999,
+        "mean_us": 24.26058333333333
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_div(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 166,
+        "total_us": 974.8779999999999,
+        "total_ms": 0.9748779999999999,
+        "mean_us": 5.872759036144578
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_set_tensor(tecodnn::ual::ops::SetTensorArgs)",
+        "calls": 92,
+        "total_us": 804.3310000000001,
+        "total_ms": 0.8043310000000001,
+        "mean_us": 8.742728260869567
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_reciprocal_tensor_ft32(tecodnn::ual::ops::ReciprocalTensorArgs)",
+        "calls": 144,
+        "total_us": 585.0569999999999,
+        "total_ms": 0.5850569999999999,
+        "mean_us": 4.062895833333332
+      },
+      {
+        "name": "_ZN7tecodnn3ual5slave47teco_slave_convolutionbackwarddata_small_weightIDF16_fEEvNS0_3ops22ConvolutionBwdDataArgsE",
+        "calls": 4,
+        "total_us": 517.881,
+        "total_ms": 0.5178809999999999,
+        "mean_us": 129.47025
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_unpad_last_4B(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 6,
+        "total_us": 464.377,
+        "total_ms": 0.464377,
+        "mean_us": 77.39616666666667
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_unary_ops_with_alpha_ft16(tecodnn::ual::ops::UnaryOpsArgs)",
+        "calls": 86,
+        "total_us": 457.7600000000002,
+        "total_ms": 0.4577600000000002,
+        "mean_us": 5.322790697674421
+      },
+      {
+        "name": "tecoblas::ual::slave::teco_slave_gemm_NT_Afp32_Bfp32_Cfp32_64(tecoblas::ual::ops::GemmWrapArgs)",
+        "calls": 2,
+        "total_us": 419.209,
+        "total_ms": 0.419209,
+        "mean_us": 209.6045
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_unary_ops_without_alpha_ft16(tecodnn::ual::ops::UnaryOpsArgs)",
+        "calls": 6,
+        "total_us": 337.698,
+        "total_ms": 0.337698,
+        "mean_us": 56.282999999999994
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_copy_stride_dma_2D<unsigned int>(tecodnn::ual::ops::CopyStrideArgs)",
+        "calls": 14,
+        "total_us": 309.56300000000005,
+        "total_ms": 0.30956300000000003,
+        "mean_us": 22.11164285714286
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_transform_tensorex_pad_large(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 2,
+        "total_us": 277.754,
+        "total_ms": 0.277754,
+        "mean_us": 138.877
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_memset_4B_align(tecodnn::ual::ops::MemsetArgs)",
+        "calls": 54,
+        "total_us": 252.18800000000002,
+        "total_ms": 0.252188,
+        "mean_us": 4.670148148148148
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_activation_forward_ft32(tecodnn::ual::ops::ActivationFwdArgs)",
+        "calls": 10,
+        "total_us": 251.734,
+        "total_ms": 0.251734,
+        "mean_us": 25.1734
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_cast_tensor_typeless<long, float>(tecodnn::ual::ops::TransformTensorArgs)",
+        "calls": 40,
+        "total_us": 241.53900000000007,
+        "total_ms": 0.24153900000000006,
+        "mean_us": 6.038475000000002
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_sub(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 36,
+        "total_us": 206.28399999999993,
+        "total_ms": 0.20628399999999994,
+        "mean_us": 5.73011111111111
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_mul(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 20,
+        "total_us": 183.112,
+        "total_ms": 0.183112,
+        "mean_us": 9.1556
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_reduce_tensor_ND_max_int64(tecodnn::ual::ops::ReduceTensorArgs)",
+        "calls": 16,
+        "total_us": 178.645,
+        "total_ms": 0.178645,
+        "mean_us": 11.1653125
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_arange(tecodnn::ual::ops::ArangeArgs)",
+        "calls": 34,
+        "total_us": 149.59499999999997,
+        "total_ms": 0.14959499999999998,
+        "mean_us": 4.399852941176469
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_convolution_forward_2d_k1_little_weight_old(tecodnn::ual::ops::ConvFwdArgs)",
+        "calls": 2,
+        "total_us": 148.172,
+        "total_ms": 0.148172,
+        "mean_us": 74.086
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_broadcast_two_dims_first<float, 0>(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 10,
+        "total_us": 115.01100000000001,
+        "total_ms": 0.11501100000000002,
+        "mean_us": 11.501100000000001
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_convolution_forward_1d_fold_kernel_for_small_c_nodilation_nohalfodd(tecodnn::ual::ops::ConvFwdArgs)",
+        "calls": 2,
+        "total_us": 107.37100000000001,
+        "total_ms": 0.10737100000000001,
+        "mean_us": 53.685500000000005
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_unary_ops_with_alpha<long>(tecodnn::ual::ops::UnaryOpsArgs)",
+        "calls": 16,
+        "total_us": 102.81400000000002,
+        "total_ms": 0.10281400000000002,
+        "mean_us": 6.425875000000001
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_broadcast_expand_last_dim<int>(tecodnn::ual::ops::BroadcastArgs)",
+        "calls": 4,
+        "total_us": 97.604,
+        "total_ms": 0.097604,
+        "mean_us": 24.401
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_unpad_last_half_evenC32x_oddCout(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 2,
+        "total_us": 83.699,
+        "total_ms": 0.083699,
+        "mean_us": 41.8495
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_cumsum_axis_right_float(tecodnn::ual::ops::CumsumArgs)",
+        "calls": 2,
+        "total_us": 80.15,
+        "total_ms": 0.08015,
+        "mean_us": 40.075
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_reflect_pad_1d(tecodnn::ual::ops::PadArgs)",
+        "calls": 2,
+        "total_us": 74.392,
+        "total_ms": 0.074392,
+        "mean_us": 37.196
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_pad_last_half(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 6,
+        "total_us": 68.55,
+        "total_ms": 0.06855,
+        "mean_us": 11.424999999999999
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_clamp_tensor<float>(tecodnn::ual::ops::ClampTensorArgs)",
+        "calls": 6,
+        "total_us": 64.636,
+        "total_ms": 0.064636,
+        "mean_us": 10.772666666666666
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_transform_tensorex_pad_mini(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 4,
+        "total_us": 43.312,
+        "total_ms": 0.043311999999999996,
+        "mean_us": 10.828
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_transpose_2d_small_shape_float_db(tecodnn::ual::ops::TransposeArgs)",
+        "calls": 9,
+        "total_us": 41.239,
+        "total_ms": 0.041239,
+        "mean_us": 4.582111111111111
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_sub(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 4,
+        "total_us": 38.348,
+        "total_ms": 0.038348,
+        "mean_us": 9.587
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_embedding_forward_float(tecodnn::ual::ops::EmbeddingFwdArgs)",
+        "calls": 6,
+        "total_us": 35.302,
+        "total_ms": 0.035302,
+        "mean_us": 5.883666666666667
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_cast_tensor_typeless<int, long>(tecodnn::ual::ops::TransformTensorArgs)",
+        "calls": 6,
+        "total_us": 30.799000000000003,
+        "total_ms": 0.030799000000000003,
+        "mean_us": 5.133166666666667
+      },
+      {
+        "name": "_ZN7tecodnn3ual5slave31teco_slave_cast_tensor_typelessIbDF16_EEvNS0_3ops19TransformTensorArgsE",
+        "calls": 2,
+        "total_us": 27.456,
+        "total_ms": 0.027456,
+        "mean_us": 13.728
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_gt(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2,
+        "total_us": 23.794,
+        "total_ms": 0.023794,
+        "mean_us": 11.897
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_cast<bool, float>(tecodnn::ual::ops::TransformTensorArgs)",
+        "calls": 2,
+        "total_us": 22.328,
+        "total_ms": 0.022328,
+        "mean_us": 11.164
+      },
+      {
+        "name": "void at::sdaa::native::upsample_linear1d_out_frame<float, float>(int, float, bool, at::sdaa::native::GenericPackedTensorAccessor<float const, 3ul, at::sdaa::native::DefaultPtrTraits, long>, at::sdaa::native::GenericPackedTensorAccessor<float, 3ul, at::sdaa::native::DefaultPtrTraits, long>, dim3, dim3)",
+        "calls": 2,
+        "total_us": 21.47,
+        "total_ms": 0.02147,
+        "mean_us": 10.735
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_pad_last_16aligned(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 2,
+        "total_us": 20.658,
+        "total_ms": 0.020658000000000003,
+        "mean_us": 10.329
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_unary_ops_with_alpha<int>(tecodnn::ual::ops::UnaryOpsArgs)",
+        "calls": 4,
+        "total_us": 18.439999999999998,
+        "total_ms": 0.018439999999999998,
+        "mean_us": 4.609999999999999
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_pad_last_16aligned_negpad(tecodnn::ual::ops::TransformTensorExArgs)",
+        "calls": 2,
+        "total_us": 16.869999999999997,
+        "total_ms": 0.016869999999999996,
+        "mean_us": 8.434999999999999
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_ge(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2,
+        "total_us": 16.014,
+        "total_ms": 0.016014,
+        "mean_us": 8.007
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_div(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2,
+        "total_us": 15.087,
+        "total_ms": 0.015087,
+        "mean_us": 7.5435
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_eq(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2,
+        "total_us": 14.549,
+        "total_ms": 0.014549,
+        "mean_us": 7.2745
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_clamp_tensor<int>(tecodnn::ual::ops::ClampTensorArgs)",
+        "calls": 2,
+        "total_us": 11.369,
+        "total_ms": 0.011369,
+        "mean_us": 5.6845
+      },
+      {
+        "name": "void tecodnn::ual::slave::teco_slave_linspace<float>(tecodnn::ual::ops::LinspaceArgs)",
+        "calls": 2,
+        "total_us": 11.355,
+        "total_ms": 0.011355,
+        "mean_us": 5.6775
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_bitwise_not_tensor_uint8(tecodnn::ual::ops::NotTensorArgs)",
+        "calls": 2,
+        "total_us": 11.16,
+        "total_ms": 0.01116,
+        "mean_us": 5.58
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_no_broadcast_neq(tecodnn::ual::ops::NoBroadcastArgs)",
+        "calls": 2,
+        "total_us": 11.072,
+        "total_ms": 0.011071999999999999,
+        "mean_us": 5.536
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_reduce_tensor_ND_max_int32(tecodnn::ual::ops::ReduceTensorArgs)",
+        "calls": 2,
+        "total_us": 10.919,
+        "total_ms": 0.010919,
+        "mean_us": 5.4595
+      },
+      {
+        "name": "tecodnn::ual::slave::teco_slave_tensor_any_bool(tecodnn::ual::ops::TensorAnyArgs)",
+        "calls": 2,
+        "total_us": 9.126999999999999,
+        "total_ms": 0.009127,
+        "mean_us": 4.5634999999999994
+      }
+    ],
+    "privateuse1_runtime": [
+      {
+        "name": "sdaaLaunchKernel",
+        "calls": 22894,
+        "total_us": 431023.866000004,
+        "total_ms": 431.023866000004,
+        "mean_us": 18.826935703677993
+      },
+      {
+        "name": "sdaaMemcpyAsync",
+        "calls": 270,
+        "total_us": 78336.91500000002,
+        "total_ms": 78.33691500000002,
+        "mean_us": 290.1367222222223
+      },
+      {
+        "name": "sdaaGetDevice",
+        "calls": 334192,
+        "total_us": 65710.31099999792,
+        "total_ms": 65.71031099999792,
+        "mean_us": 0.19662442847224926
+      },
+      {
+        "name": "sdaaMalloc",
+        "calls": 8,
+        "total_us": 215.203,
+        "total_ms": 0.215203,
+        "mean_us": 26.900375
+      },
+      {
+        "name": "sdaaStreamSynchronize",
+        "calls": 218,
+        "total_us": 136.41199999999995,
+        "total_ms": 0.13641199999999995,
+        "mean_us": 0.6257431192660549
+      },
+      {
+        "name": "sdaaFree",
+        "calls": 8,
+        "total_us": 79.801,
+        "total_ms": 0.079801,
+        "mean_us": 9.975125
+      },
+      {
+        "name": "sdaaGetLastError",
+        "calls": 8,
+        "total_us": 3.85,
+        "total_ms": 0.00385,
+        "mean_us": 0.48125
+      },
+      {
+        "name": "sdaaDeviceSynchronize",
+        "calls": 1,
+        "total_us": 3.409,
+        "total_ms": 0.0034089999999999997,
+        "mean_us": 3.409
+      }
+    ],
+    "user_annotation": [
+      {
+        "name": "cosyvoice.full_request",
+        "calls": 2,
+        "total_us": 4579973.540999999,
+        "total_ms": 4579.973540999999,
+        "mean_us": 2289986.7704999996
+      },
+      {
+        "name": "cosyvoice.flow",
+        "calls": 2,
+        "total_us": 1777501.2319999998,
+        "total_ms": 1777.5012319999998,
+        "mean_us": 888750.6159999999
+      },
+      {
+        "name": "cosyvoice.hift",
+        "calls": 2,
+        "total_us": 285909.462,
+        "total_ms": 285.909462,
+        "mean_us": 142954.731
+      },
+      {
+        "name": "cosyvoice.clear_accelerator_cache",
+        "calls": 2,
+        "total_us": 319.381,
+        "total_ms": 0.31938099999999997,
+        "mean_us": 159.6905
+      }
+    ]
+  }
+}

@@ -1,0 +1,121 @@
+phase,row_type,category,operator,calls,total_us,total_ms,mean_us,input_shape_or_args
+flow,top_operator,Trace,PyTorch Profiler (0),1,4594234.661,4594.234661,4594234.661,
+flow,top_operator,user_annotation,cosyvoice.full_request,2,4579973.540999999,4579.973540999999,2289986.7704999996,
+flow,top_operator,user_annotation,cosyvoice.flow,2,1777501.2319999998,1777.5012319999998,888750.6159999999,
+flow,top_operator,cpu_op,aten::cat,2916,540244.6039999994,540.2446039999993,185.2690685871054,"[[[1, 87], [1, 153]], []]"
+flow,top_operator,privateuse1_runtime,sdaaLaunchKernel,19428,415003.0910000039,415.0030910000039,21.36108148033786,
+flow,top_operator,cpu_op,aten::mul,4528,363541.3559999999,363.5413559999999,80.28740194346288,"[[1, 240, 80], [1, 240, 1]]"
+flow,top_operator,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),175,340251.741,340.251741,1944.2956628571428,
+flow,top_operator,kernel,tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs),36,303661.114,303.661114,8435.030944444445,
+flow,top_operator,cpu_op,_C_sdaa_poc::flow_fused_norm,688,266812.934,266.812934,387.80949709302325,"[[2, 480, 1024], [2, 480, 1024], [2, 1024], [2, 1024], []]"
+flow,top_operator,cpu_op,aten::as_strided,24178,266664.33899999986,266.66433899999987,11.029214120274624,"[[1, 1], [], [], []]"
+flow,top_operator,cpu_op,aten::linear,964,260256.59199999963,260.2565919999996,269.97571784232326,"[[1, 192], [80, 192], [80]]"
+flow,top_operator,cpu_op,aten::copy_,4920,252670.51600000038,252.6705160000004,51.355795934959424,"[[80], [80], []]"
+flow,top_operator,cpu_op,sdaa::cat.out,1458,234984.40499999997,234.98440499999998,161.16900205761314,
+flow,top_operator,cpu_op,aten::addmm,964,216870.7060000002,216.8707060000002,224.96961203319523,"[[80], [1, 192], [192, 80], [], []]"
+flow,top_operator,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),176,208195.27800000008,208.1952780000001,1182.9277159090914,
+flow,top_operator,cpu_op,sdaa::copy_,4878,200800.18199999986,200.80018199999986,41.164448954489515,
+flow,top_operator,kernel,tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs),1359,162763.5830000002,162.76358300000018,119.7671692420899,
+flow,top_operator,kernel,tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs),463,138185.83199999988,138.1858319999999,298.45752051835825,
+flow,top_operator,cpu_op,sdaa::mul.out,2264,128720.50499999993,128.72050499999995,56.85534673144873,
+flow,top_operator,cpu_op,aten::select,9734,120334.0459999996,120.33404599999959,12.362240189028107,"[[9], [], []]"
+flow,top_sdaa_kernel,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),175,340251.741,340.251741,1944.2956628571428,
+flow,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs),36,303661.114,303.661114,8435.030944444445,
+flow,top_sdaa_kernel,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),176,208195.27800000008,208.1952780000001,1182.9277159090914,
+flow,top_sdaa_kernel,kernel,tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs),1359,162763.5830000002,162.76358300000018,119.7671692420899,
+flow,top_sdaa_kernel,kernel,tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs),463,138185.83199999988,138.1858319999999,298.45752051835825,
+flow,top_sdaa_kernel,kernel,void tecodnn::ual::slave::teco_slave_copy_stride_dma_2D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs),3577,102119.35800000021,102.1193580000002,28.548883980989714,
+flow,top_sdaa_kernel,kernel,"void slave_gemm_m8n256k128_fp16<1536u, false, false>(GemmM8N256K128Args)",351,61687.009999999995,61.687009999999994,175.74646723646723,
+flow,top_sdaa_kernel,kernel,"void slave_gemm_m8n256k128_fp16<1024u, false, false>(GemmM8N256K128Args)",351,51753.11799999998,51.75311799999998,147.44478062678058,
+flow,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs),2172,50349.63799999998,50.34963799999998,23.181232965009197,
+flow,top_sdaa_kernel,kernel,void tecolmk_slave_fused_norm_under_2048<3>(FusedNormArgs),1374,48681.60999999998,48.68160999999998,35.430574963609885,
+flow,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs),1722,44631.466000000015,44.63146600000002,25.918389082462262,
+flow,top_sdaa_kernel,kernel,_ZN7tecodnn3ual5slave35teco_slave_broadcast_two_dims_firstIDF16_Li0EEEvNS0_3ops13BroadcastArgsE,1744,36923.67599999996,36.923675999999965,21.171832568807318,
+flow,top_sdaa_kernel,kernel,_Z42tecolmk_slave_ffn_layer_general_activationIL16ActivationMode_t1ELb0EEviiPDF16_S1_f,351,31444.88699999998,31.44488699999998,89.58657264957259,
+flow,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs),736,29814.53600000003,29.81453600000003,40.50888043478265,
+flow,top_sdaa_kernel,kernel,"void tecolmk_slave_src_kind3_4_dst_kind7_permute<1536u, true>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",351,12263.326999999997,12.263326999999997,34.93825356125355,
+flow,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_concat_tensor_all_less_than_16B(tecodnn::ual::ops::ConcatArgs),719,11763.494000000012,11.763494000000012,16.360909596662047,
+flow,top_sdaa_kernel,kernel,"void tecolmk_slave_src_kind3_4_dst_kind7_permute<1024u, false>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",351,11354.235,11.354235000000001,32.34824786324786,
+flow,top_sdaa_kernel,kernel,"void tecolmk_slave_ffn_layer_general_fused_for_small<(tecolmkDataPresion_t)1, 128u, false, true, (ActivationMode_t)1>(FfnLayerGeneralV2Args, int, int, float)",176,9071.038000000002,9.071038000000001,51.53998863636365,
+flow,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_groupconv_pad_filter(tecodnn::ual::ops::GroupConvPadFilterArgs),32,7697.899000000001,7.697899000000001,240.55934375000004,
+flow,top_sdaa_kernel,kernel,void tecodnn::ual::slave::teco_slave_copy_stride_dma_3D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs),32,5119.017000000001,5.119017,159.96928125000002,
+hift,top_operator,Trace,PyTorch Profiler (0),1,4594234.661,4594.234661,4594234.661,
+hift,top_operator,user_annotation,cosyvoice.full_request,2,4579973.540999999,4579.973540999999,2289986.7704999996,
+hift,top_operator,user_annotation,cosyvoice.hift,2,285909.462,285.909462,142954.731,
+hift,top_operator,cpu_op,aten::copy_,1226,100938.52999999988,100.93852999999989,82.33159053833596,"[[1, 80, 3], [1, 80, 3], []]"
+hift,top_operator,cpu_op,aten::conv1d,332,90440.44999999998,90.44044999999998,272.4109939759036,"[[1, 80, 309], [512, 80, 4], [512], [], [], [], []]"
+hift,top_operator,cpu_op,sdaa::copy_,1220,88499.0650000001,88.4990650000001,72.54021721311484,
+hift,top_operator,cpu_op,aten::to,860,88100.26299999998,88.10026299999998,102.44216627906974,"[[512, 1, 1], [], [], [], [], []]"
+hift,top_operator,cpu_op,aten::_to_copy,654,87292.1679999999,87.2921679999999,133.47426299694175,"[[1, 80, 3], [], [], [], [], [], []]"
+hift,top_operator,privateuse1_runtime,sdaaMemcpyAsync,176,59768.69999999995,59.76869999999995,339.5948863636361,
+hift,top_operator,cpu_op,sdaart::sdaaMemcpyAsyncH2D,166,56946.26,56.94626,343.04975903614456,
+hift,top_operator,cpu_op,aten::mul,1238,51980.86399999992,51.98086399999992,41.987773828756,"[[512, 80, 4], [512, 1, 1]]"
+hift,top_operator,cpu_op,aten::convolution,176,36755.22000000001,36.75522000000001,208.8364772727273,"[[1, 80, 309], [512, 80, 4], [512], [], [], [], [], [], []]"
+hift,top_operator,cpu_op,aten::_weight_norm,164,35785.864,35.785864000000004,218.20648780487807,"[[512, 80, 4], [512, 1, 1], []]"
+hift,top_operator,cpu_op,sdaa::convolution,176,33716.59699999999,33.716596999999986,191.5715738636363,
+hift,top_operator,cpu_op,sdaa::_weight_norm,164,33709.603,33.709603,205.5463597560976,
+hift,top_operator,cpu_op,aten::cat,332,32940.618,32.940618,99.21872891566265,"[[[1, 80, 306], [1, 80, 3]], []]"
+hift,top_operator,kernel,tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs),2,31989.059999999998,31.98906,15994.529999999999,
+hift,top_operator,cpu_op,aten::pow,432,20305.456999999995,20.305456999999993,47.00337268518518,"[[1, 256, 2448], []]"
+hift,top_operator,cpu_op,aten::reciprocal,432,18894.661000000004,18.894661000000003,43.73764120370371,"[[1, 256, 1]]"
+hift,top_operator,kernel,tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs),212,18720.001999999997,18.720001999999997,88.30189622641508,
+hift,top_sdaa_kernel,kernel,tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs),2,31989.059999999998,31.98906,15994.529999999999,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs),212,18720.001999999997,18.720001999999997,88.30189622641508,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs),118,18143.393000000004,18.143393000000003,153.7575677966102,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_transpose_4b(tecodnn::ual::ops::TransposeArgs),109,18124.281,18.124281,166.27780733944954,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs),287,15992.611000000004,15.992611000000004,55.72338327526134,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_unary_ops_without_alpha_ft32(tecodnn::ual::ops::UnaryOpsArgs),150,12582.600999999997,12.582600999999997,83.88400666666665,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs),168,11208.277999999997,11.208277999999996,66.71594047619045,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_mul(tecodnn::ual::ops::NoBroadcastArgs),144,9960.310999999998,9.960310999999997,69.16882638888887,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_add(tecodnn::ual::ops::NoBroadcastArgs),146,8629.790000000005,8.629790000000005,59.10815068493154,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs),491,7652.733999999996,7.652733999999996,15.586016293279014,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_broadcast_add(tecodnn::ual::ops::BroadcastArgs),110,5372.264,5.372264,48.83876363636364,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_convolution_forward_nodilation_nostride_little_weight_db(tecodnn::ual::ops::ConvFwdArgs),50,3479.356,3.479356,69.58712,
+hift,top_sdaa_kernel,kernel,void tecodnn::ual::slave::teco_slave_broadcast_expand_last_dim<short>(tecodnn::ual::ops::BroadcastArgs),6,3475.791,3.475791,579.2985,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_transpose_2d_aligned(tecodnn::ual::ops::TransposeArgs),200,3464.479999999999,3.464479999999999,17.322399999999995,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_add(tecodnn::ual::ops::NoBroadcastArgs),91,3371.609999999999,3.371609999999999,37.05065934065933,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_reduce_tensor_ND_norm2_float(tecodnn::ual::ops::ReduceTensorArgs),164,2956.6260000000007,2.956626000000001,18.028207317073175,
+hift,top_sdaa_kernel,kernel,"void tecodnn::ual::slave::teco_slave_broadcast_two_dims_second<float, 1>(tecodnn::ual::ops::BroadcastArgs)",128,2482.9410000000016,2.4829410000000016,19.397976562500013,
+hift,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_1_scalar_remainder(tecodnn::ual::ops::NoBroadcastArgs),2,2473.38,2.47338,1236.69,
+hift,top_sdaa_kernel,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),1,1936.874,1.936874,1936.874,
+hift,top_sdaa_kernel,kernel,"void tecodnn::ual::slave::teco_slave_broadcast_two_dims_first<float, 1>(tecodnn::ual::ops::BroadcastArgs)",48,1164.5079999999998,1.1645079999999999,24.26058333333333,
+full_request,top_operator,Trace,PyTorch Profiler (0),1,4594234.661,4594.234661,4594234.661,
+full_request,top_operator,user_annotation,cosyvoice.full_request,2,4579973.540999999,4579.973540999999,2289986.7704999996,
+full_request,top_operator,user_annotation,cosyvoice.flow,2,1777501.2319999998,1777.5012319999998,888750.6159999999,
+full_request,top_operator,cpu_op,aten::cat,3248,573185.222,573.185222,176.47328263546797,"[[[1, 87], [1, 153]], []]"
+full_request,top_operator,privateuse1_runtime,sdaaLaunchKernel,22894,431023.866000004,431.023866000004,18.826935703677993,
+full_request,top_operator,cpu_op,aten::mul,5766,415522.21999999875,415.52221999999875,72.06420742282323,"[[1, 240, 80], [1, 240, 1]]"
+full_request,top_operator,cpu_op,aten::copy_,6164,355043.37499999953,355.0433749999995,57.599509247241976,"[[1, 153], [1, 153], []]"
+full_request,top_operator,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),176,342188.615,342.18861499999997,1944.2534943181818,
+full_request,top_operator,kernel,tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs),154,321804.5070000001,321.8045070000001,2089.6396558441566,
+full_request,top_operator,cpu_op,sdaa::copy_,6114,290457.95399999956,290.4579539999996,47.50702551521092,
+full_request,top_operator,user_annotation,cosyvoice.hift,2,285909.462,285.909462,142954.731,
+full_request,top_operator,cpu_op,aten::as_strided,25690,284439.0999999995,284.4390999999995,11.071977423121819,"[[1, 25], [], [], []]"
+full_request,top_operator,cpu_op,_C_sdaa_poc::flow_fused_norm,688,266812.934,266.812934,387.80949709302325,"[[2, 480, 1024], [2, 480, 1024], [2, 1024], [2, 1024], []]"
+full_request,top_operator,cpu_op,aten::linear,970,261785.42499999964,261.78542499999963,269.8818814432986,"[[1, 192], [80, 192], [80]]"
+full_request,top_operator,cpu_op,sdaa::cat.out,1624,247246.395,247.24639499999998,152.24531711822658,
+full_request,top_operator,cpu_op,aten::addmm,968,217224.84300000017,217.22484300000016,224.4058295454547,"[[80], [1, 192], [192, 80], [], []]"
+full_request,top_operator,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),176,208195.27800000008,208.1952780000001,1182.9277159090914,
+full_request,top_operator,kernel,tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs),1360,162887.53600000017,162.88753600000015,119.77024705882366,
+full_request,top_operator,cpu_op,aten::to,2344,152615.98900000006,152.61598900000007,65.10921032423211,"[[1, 25], [], [], [], [], []]"
+full_request,top_operator,cpu_op,aten::_to_copy,1708,150185.79700000002,150.185797,87.93079449648714,"[[1, 153], [], [], [], [], [], []]"
+full_request,top_sdaa_kernel,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_32_false_general_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),176,342188.615,342.18861499999997,1944.2534943181818,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_convolution_forward_1d_withdilation_nohalfCModd(tecodnn::ual::ops::ConvFwdArgs),154,321804.5070000001,321.8045070000001,2089.6396558441566,
+full_request,top_sdaa_kernel,kernel,tecocustom::ual::kernel::teco_slave_flash_attention_forward_8_4_64_false_32X_hd256(tecocustom::ual::ops::FlashAttentionForwardArgs),176,208195.27800000008,208.1952780000001,1182.9277159090914,
+full_request,top_sdaa_kernel,kernel,tecoblas::ual::slave::teco_slave_gemm_NN_Afp16_Bfp16_Cfp16_plan1_MTile1024_NTile256_KTile1536_kind3(tecoblas::ual::ops::GemmWrapArgs),1360,162887.53600000017,162.88753600000015,119.77024705882366,
+full_request,top_sdaa_kernel,kernel,tecoblas::ual::slave::teco_slave_gemm_NT_Afp16_Bfp16_Cfp16_N512_M_NOPAD(tecoblas::ual::ops::GemmWrapArgs),464,138305.70099999988,138.30570099999989,298.072631465517,
+full_request,top_sdaa_kernel,kernel,void tecodnn::ual::slave::teco_slave_copy_stride_dma_2D<unsigned short>(tecodnn::ual::ops::CopyStrideArgs),3594,102948.55900000024,102.94855900000024,28.64456288258215,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_broadcast_mul(tecodnn::ual::ops::BroadcastArgs),2460,66357.26000000002,66.35726000000003,26.97449593495936,
+full_request,top_sdaa_kernel,kernel,"void slave_gemm_m8n256k128_fp16<1536u, false, false>(GemmM8N256K128Args)",352,61867.35499999999,61.86735499999999,175.75953124999998,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_no_broadcast_float_between_half(tecodnn::ual::ops::NoBroadcastArgs),2216,52321.13000000001,52.32113000000001,23.610618231046935,
+full_request,top_sdaa_kernel,kernel,"void slave_gemm_m8n256k128_fp16<1024u, false, false>(GemmM8N256K128Args)",352,51901.556999999986,51.90155699999998,147.4476051136363,
+full_request,top_sdaa_kernel,kernel,void tecolmk_slave_fused_norm_under_2048<3>(FusedNormArgs),1376,48751.63699999997,48.751636999999974,35.42996874999998,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_concat(tecodnn::ual::ops::ConcatArgs),908,41062.65900000001,41.062659000000004,45.22319273127754,
+full_request,top_sdaa_kernel,kernel,_ZN7tecodnn3ual5slave35teco_slave_broadcast_two_dims_firstIDF16_Li0EEEvNS0_3ops13BroadcastArgsE,1800,37910.38199999997,37.91038199999997,21.061323333333316,
+full_request,top_sdaa_kernel,kernel,tecoblas::ual::slave::teco_slave_gemm_TT_Afp16_Bfp16_Cfp16(tecoblas::ual::ops::GemmWrapArgs),2,31989.059999999998,31.98906,15994.529999999999,
+full_request,top_sdaa_kernel,kernel,_Z42tecolmk_slave_ffn_layer_general_activationIL16ActivationMode_t1ELb0EEviiPDF16_S1_f,352,31536.394999999982,31.53639499999998,89.59203124999995,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_transpose_2b(tecodnn::ual::ops::TransposeArgs),284,21416.684999999998,21.416684999999998,75.41086267605633,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_transpose_4b(tecodnn::ual::ops::TransposeArgs),119,18370.103999999996,18.370103999999994,154.37062184873946,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_unary_ops_without_alpha_ft32(tecodnn::ual::ops::UnaryOpsArgs),232,13301.189999999999,13.301189999999998,57.332715517241375,
+full_request,top_sdaa_kernel,kernel,"void tecolmk_slave_src_kind3_4_dst_kind7_permute<1536u, true>(void const*, void const*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)",352,12297.875999999998,12.297875999999999,34.93714772727272,
+full_request,top_sdaa_kernel,kernel,tecodnn::ual::slave::teco_slave_concat_tensor_all_less_than_16B(tecodnn::ual::ops::ConcatArgs),720,11779.931000000011,11.779931000000012,16.361015277777792,
