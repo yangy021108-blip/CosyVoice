@@ -23,7 +23,7 @@ TARGET_PATTERNS = {
     "attention": ("attention", "flash", "scaled_dot", "softmax"),
     "layer_norm": ("norm",),
     "gate_multiply": ("mul",),
-    "rope": ("rope", "rotary", "sin", "cos"),
+    "rope": ("rope", "rotary", "aten::sin", "aten::cos", "sdaa::sin", "sdaa::cos"),
     "cat": ("cat", "concat"),
     "copy_stride": ("copy", "stride"),
     "transpose_contiguous": ("transpose", "permute", "contiguous"),
