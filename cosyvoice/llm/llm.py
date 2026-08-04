@@ -156,7 +156,10 @@ class TransformerLM(torch.nn.Module):
             ignore_eos: bool = True,
     ):
         if ignore_eos is True:
-            weighted_scores[self.speech_token_size] = -float('inf')
+            stop_token_ids = getattr(
+                self, 'stop_token_ids', [self.speech_token_size]
+            )
+            weighted_scores[stop_token_ids] = -float('inf')
         top_ids = self.sampling(weighted_scores, decoded_tokens, sampling)
         return top_ids
 
@@ -526,13 +529,38 @@ class Qwen2LM(TransformerLM):
     def inference_wrapper(self, lm_input, sampling, min_len, max_len, uuid):
         if hasattr(self, 'vllm'):
             from vllm import SamplingParams, RequestOutput
+            # Match the native decoder's nucleus sampling and prevent SDAA
+            # vLLM from collapsing into long runs of acoustic silence tokens.
+            top_p = float(os.getenv('COSYVOICE_VLLM_TOP_P', '0.8'))
+            repetition_penalty = float(
+                os.getenv('COSYVOICE_VLLM_REPETITION_PENALTY', '1.1')
+            )
+            presence_penalty = float(
+                os.getenv('COSYVOICE_VLLM_PRESENCE_PENALTY', '0.0')
+            )
+            frequency_penalty = float(
+                os.getenv('COSYVOICE_VLLM_FREQUENCY_PENALTY', '0.0')
+            )
             sampling_params = SamplingParams(top_k=sampling,
+                                             top_p=top_p,
+                                             repetition_penalty=repetition_penalty,
+                                             presence_penalty=presence_penalty,
+                                             frequency_penalty=frequency_penalty,
                                              stop_token_ids=self.stop_token_ids,
                                              min_tokens=min_len,
                                              max_tokens=max_len,
                                              seed=self.inference_seed)
+            # SDAA uses float16 for both the exported model and prompt
+            # embeddings because this backend does not support bfloat16.
+            is_sdaa = lm_input.device.type == 'sdaa'
+            prompt_dtype = torch.float16 if is_sdaa else torch.bfloat16
+            prompt_embeds = lm_input.squeeze(0).to(dtype=prompt_dtype)
             with self.lock:
-                self.vllm.add_request(uuid, {"prompt_embeds": lm_input.squeeze(0).to(torch.bfloat16).to(lm_input.device)}, sampling_params)
+                self.vllm.add_request(
+                    uuid,
+                    {"prompt_embeds": prompt_embeds},
+                    sampling_params,
+                )
                 self.vllm_output_queue[uuid] = queue.Queue()
             out_tokens = []
             while True:
@@ -540,7 +568,7 @@ class Qwen2LM(TransformerLM):
                     if self.vllm_output_queue[uuid].empty() is True:
                         request_outputs: List[RequestOutput] = self.vllm.step()
                         for request_output in request_outputs:
-                            top_ids = list(request_output.outputs[0].token_ids)[-1]
+                            top_ids = request_output.outputs[0].token_ids[-1]
                             self.vllm_output_queue[request_output.request_id].put(top_ids)
                 if self.vllm_output_queue[uuid].empty() is False:
                     top_ids = self.vllm_output_queue[uuid].get()
@@ -554,6 +582,16 @@ class Qwen2LM(TransformerLM):
                 time.sleep(0.001)
             with self.lock:
                 self.vllm_output_queue.pop(uuid)
+            if os.getenv('COSYVOICE_DEBUG_TOKEN_TRACE', '').lower() in (
+                    '1', 'true', 'yes', 'on'):
+                logging.info(
+                    'vllm token trace seed=%s top_p=%s repetition_penalty=%s '
+                    'presence_penalty=%s frequency_penalty=%s min_len=%s '
+                    'max_len=%s count=%s tokens=%s',
+                    self.inference_seed, top_p, repetition_penalty,
+                    presence_penalty, frequency_penalty, min_len, max_len,
+                    len(out_tokens), out_tokens,
+                )
         else:
             out_tokens = []
             cache = None
@@ -569,6 +607,14 @@ class Qwen2LM(TransformerLM):
                 yield top_ids
                 out_tokens.append(top_ids)
                 lm_input = self.speech_embedding.weight[top_ids].reshape(1, 1, -1)
+            if os.getenv('COSYVOICE_DEBUG_TOKEN_TRACE', '').lower() in (
+                    '1', 'true', 'yes', 'on'):
+                logging.info(
+                    'native token trace seed=%s min_len=%s max_len=%s '
+                    'count=%s tokens=%s',
+                    self.inference_seed, min_len, max_len, len(out_tokens),
+                    out_tokens,
+                )
 
     @torch.inference_mode()
     def inference_bistream(

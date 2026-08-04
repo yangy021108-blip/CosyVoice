@@ -14,6 +14,7 @@
 
 """HIFI-GAN"""
 
+import os
 from typing import Dict, Optional, List
 import numpy as np
 from scipy.signal import get_window
@@ -41,6 +42,58 @@ This code is modified from https://github.com/jik876/hifi-gan
  https://github.com/NVIDIA/BigVGAN
 
 """
+
+
+def _reflection_pad_left_one(
+    x: torch.Tensor,
+    fallback: nn.ReflectionPad1d,
+) -> torch.Tensor:
+    use_sdaa_fastpath = (
+        os.getenv("COSYVOICE_SDAA_HIFT_REFLECTION_PAD", "")
+        .strip()
+        .lower()
+        in {"1", "true", "yes", "on"}
+        and x.device.type == "sdaa"
+        and x.shape[-1] > 1
+        and not torch.is_grad_enabled()
+    )
+    if use_sdaa_fastpath:
+        # ReflectionPad1d((1, 0)) prepends the second sample. Expressing the
+        # same operation with slicing keeps this one-element pad on SDAA.
+        return torch.cat((x[..., 1:2], x), dim=-1)
+    return fallback(x)
+
+
+def _nearest_upsample_1d(
+    x: torch.Tensor,
+    scale_factor: int,
+) -> torch.Tensor:
+    scale_factor = int(scale_factor)
+    use_sdaa_fastpath = (
+        os.getenv("COSYVOICE_SDAA_HIFT_NEAREST_UPSAMPLE", "")
+        .strip()
+        .lower()
+        in {"1", "true", "yes", "on"}
+        and x.device.type == "sdaa"
+        and not torch.is_grad_enabled()
+    )
+    if use_sdaa_fastpath:
+        if (
+            os.getenv(
+                "COSYVOICE_SDAA_HIFT_CONTIGUOUS_UPSAMPLE",
+                "",
+            )
+            .strip()
+            .lower()
+            in {"1", "true", "yes", "on"}
+        ):
+            x = x.contiguous()
+        return x.repeat_interleave(scale_factor, dim=-1)
+    return F.interpolate(
+        x,
+        scale_factor=scale_factor,
+        mode="nearest",
+    )
 
 
 class ResBlock(torch.nn.Module):
@@ -253,8 +306,19 @@ class SineGen2(torch.nn.Module):
                                                          mode="linear").transpose(1, 2)
 
             phase = torch.cumsum(rad_values, dim=1) * 2 * np.pi
-            phase = torch.nn.functional.interpolate(phase.transpose(1, 2) * self.upsample_scale,
-                                                    scale_factor=self.upsample_scale, mode="nearest" if self.causal is True else 'linear').transpose(1, 2)
+            phase = phase.transpose(1, 2) * self.upsample_scale
+            if self.causal is True:
+                phase = _nearest_upsample_1d(
+                    phase,
+                    self.upsample_scale,
+                )
+            else:
+                phase = torch.nn.functional.interpolate(
+                    phase,
+                    scale_factor=self.upsample_scale,
+                    mode="linear",
+                )
+            phase = phase.transpose(1, 2)
             sines = torch.sin(phase)
         else:
             # If necessary, make sure that the first time step of every
@@ -421,7 +485,12 @@ class HiFTGenerator(nn.Module):
             voiced_threshod=nsf_voiced_threshold,
             sinegen_type='1' if self.sampling_rate == 22050 else '2',
             causal=False)
-        self.f0_upsamp = torch.nn.Upsample(scale_factor=np.prod(upsample_rates) * istft_params["hop_len"])
+        self.f0_upsample_factor = int(
+            np.prod(upsample_rates) * istft_params["hop_len"]
+        )
+        self.f0_upsamp = torch.nn.Upsample(
+            scale_factor=self.f0_upsample_factor
+        )
 
         self.conv_pre = weight_norm(
             Conv1d(in_channels, base_channels, 7, 1, padding=3)
@@ -471,7 +540,13 @@ class HiFTGenerator(nn.Module):
         self.ups.apply(init_weights)
         self.conv_post.apply(init_weights)
         self.reflection_pad = nn.ReflectionPad1d((1, 0))
-        self.stft_window = torch.from_numpy(get_window("hann", istft_params["n_fft"], fftbins=True).astype(np.float32))
+        self.stft_window = torch.from_numpy(
+            get_window(
+                "hann",
+                istft_params["n_fft"],
+                fftbins=True,
+            ).astype(np.float32)
+        )
         self.f0_predictor = f0_predictor
 
     def remove_weight_norm(self):
@@ -488,7 +563,81 @@ class HiFTGenerator(nn.Module):
         for l in self.source_resblocks:
             l.remove_weight_norm()
 
+    def _use_sdaa_conv_fourier(self, tensor: torch.Tensor) -> bool:
+        return (
+            tensor.device.type == "sdaa"
+            and os.getenv("COSYVOICE_SDAA_HIFT_CONV_STFT", "")
+            .strip()
+            .lower()
+            in {"1", "true", "yes", "on"}
+            and not torch.is_grad_enabled()
+        )
+
+    def _sdaa_fourier_weights(
+        self,
+        device: torch.device,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        n_fft = self.istft_params["n_fft"]
+        cache = getattr(self, "_sdaa_fourier_weight_cache", None)
+        if cache is not None and cache[0] == device:
+            return cache[1], cache[2], cache[3]
+
+        window = self.stft_window.to(device=device, dtype=torch.float32)
+        frequency = torch.arange(
+            n_fft // 2 + 1,
+            dtype=torch.float32,
+            device=device,
+        )[:, None]
+        sample = torch.arange(
+            n_fft,
+            dtype=torch.float32,
+            device=device,
+        )[None, :]
+        angle = 2.0 * torch.pi * frequency * sample / n_fft
+        forward_weight = torch.cat(
+            (torch.cos(angle) * window, -torch.sin(angle) * window),
+            dim=0,
+        ).unsqueeze(1).contiguous()
+
+        inverse_real = torch.cos(angle) / n_fft
+        inverse_real[1:-1] *= 2.0
+        inverse_imag = -torch.sin(angle) / n_fft
+        inverse_imag[1:-1] *= 2.0
+        inverse_imag[0].zero_()
+        inverse_imag[-1].zero_()
+        inverse_weight = torch.cat(
+            (inverse_real, inverse_imag), dim=0
+        ).mul(window).unsqueeze(1).contiguous()
+        cache = (
+            device,
+            forward_weight,
+            inverse_weight,
+            window.square()[None, None].contiguous(),
+        )
+        self._sdaa_fourier_weight_cache = cache
+        return cache[1], cache[2], cache[3]
+
     def _stft(self, x):
+        if self._use_sdaa_conv_fourier(x):
+            n_fft = self.istft_params["n_fft"]
+            hop_len = self.istft_params["hop_len"]
+            forward_weight, _, _ = self._sdaa_fourier_weights(x.device)
+            with torch.sdaa.amp.autocast(enabled=False):
+                padded = F.pad(
+                    x[:, None].float(),
+                    (n_fft // 2, n_fft // 2),
+                    mode="reflect",
+                )
+                spectrum = F.conv1d(
+                    padded,
+                    forward_weight,
+                    stride=hop_len,
+                )
+            frequency_bins = n_fft // 2 + 1
+            return (
+                spectrum[:, :frequency_bins],
+                spectrum[:, frequency_bins:],
+            )
         spec = torch.stft(
             x,
             self.istft_params["n_fft"], self.istft_params["hop_len"], self.istft_params["n_fft"], window=self.stft_window.to(x.device),
@@ -500,6 +649,37 @@ class HiFTGenerator(nn.Module):
         magnitude = torch.clip(magnitude, max=1e2)
         real = magnitude * torch.cos(phase)
         img = magnitude * torch.sin(phase)
+        if self._use_sdaa_conv_fourier(magnitude):
+            n_fft = self.istft_params["n_fft"]
+            hop_len = self.istft_params["hop_len"]
+            _, inverse_weight, window_squared = (
+                self._sdaa_fourier_weights(magnitude.device)
+            )
+            with torch.sdaa.amp.autocast(enabled=False):
+                spectrum = torch.cat(
+                    (real.float(), img.float()), dim=1
+                )
+                inverse_transform = F.conv_transpose1d(
+                    spectrum,
+                    inverse_weight,
+                    stride=hop_len,
+                )
+                envelope = F.conv_transpose1d(
+                    torch.ones(
+                        spectrum.shape[0],
+                        1,
+                        spectrum.shape[-1],
+                        dtype=torch.float32,
+                        device=spectrum.device,
+                    ),
+                    window_squared,
+                    stride=hop_len,
+                )
+                trim = n_fft // 2
+                inverse_transform = inverse_transform[..., trim:-trim]
+                envelope = envelope[..., trim:-trim]
+                inverse_transform = inverse_transform / envelope
+            return inverse_transform.squeeze(1)
         inverse_transform = torch.istft(torch.complex(real, img), self.istft_params["n_fft"], self.istft_params["hop_len"],
                                         self.istft_params["n_fft"], window=self.stft_window.to(magnitude.device))
         return inverse_transform
@@ -514,7 +694,7 @@ class HiFTGenerator(nn.Module):
             x = self.ups[i](x)
 
             if i == self.num_upsamples - 1:
-                x = self.reflection_pad(x)
+                x = _reflection_pad_left_one(x, self.reflection_pad)
 
             # fusion
             si = self.source_downs[i](s_stft)
@@ -547,7 +727,10 @@ class HiFTGenerator(nn.Module):
         # mel->f0
         f0 = self.f0_predictor(speech_feat)
         # f0->source
-        s = self.f0_upsamp(f0[:, None]).transpose(1, 2)  # bs,n,t
+        s = _nearest_upsample_1d(
+            f0[:, None],
+            self.f0_upsample_factor,
+        ).transpose(1, 2)  # bs,n,t
         s, _, _ = self.m_source(s)
         s = s.transpose(1, 2)
         # mel+source->speech
@@ -559,7 +742,10 @@ class HiFTGenerator(nn.Module):
         # mel->f0
         f0 = self.f0_predictor(speech_feat)
         # f0->source
-        s = self.f0_upsamp(f0[:, None]).transpose(1, 2)  # bs,n,t
+        s = _nearest_upsample_1d(
+            f0[:, None],
+            self.f0_upsample_factor,
+        ).transpose(1, 2)  # bs,n,t
         s, _, _ = self.m_source(s)
         s = s.transpose(1, 2)
         # use cache_source to avoid glitch
@@ -616,7 +802,12 @@ class CausalHiFTGenerator(HiFTGenerator):
             sinegen_type='1' if self.sampling_rate == 22050 else '2',
             causal=True)
         self.upsample_rates = upsample_rates
-        self.f0_upsamp = torch.nn.Upsample(scale_factor=np.prod(upsample_rates) * istft_params["hop_len"])
+        self.f0_upsample_factor = int(
+            np.prod(upsample_rates) * istft_params["hop_len"]
+        )
+        self.f0_upsamp = torch.nn.Upsample(
+            scale_factor=self.f0_upsample_factor
+        )
 
         self.conv_pre = weight_norm(
             CausalConv1d(in_channels, base_channels, conv_pre_look_right + 1, 1, causal_type='right')
@@ -665,7 +856,13 @@ class CausalHiFTGenerator(HiFTGenerator):
         self.ups.apply(init_weights)
         self.conv_post.apply(init_weights)
         self.reflection_pad = nn.ReflectionPad1d((1, 0))
-        self.stft_window = torch.from_numpy(get_window("hann", istft_params["n_fft"], fftbins=True).astype(np.float32))
+        self.stft_window = torch.from_numpy(
+            get_window(
+                "hann",
+                istft_params["n_fft"],
+                fftbins=True,
+            ).astype(np.float32)
+        )
         self.conv_pre_look_right = conv_pre_look_right
         self.f0_predictor = f0_predictor
 
@@ -684,7 +881,7 @@ class CausalHiFTGenerator(HiFTGenerator):
             x = self.ups[i](x)
 
             if i == self.num_upsamples - 1:
-                x = self.reflection_pad(x)
+                x = _reflection_pad_left_one(x, self.reflection_pad)
 
             # fusion
             si = self.source_downs[i](s_stft)
@@ -713,10 +910,35 @@ class CausalHiFTGenerator(HiFTGenerator):
     @torch.inference_mode()
     def inference(self, speech_feat: torch.Tensor, finalize: bool = True) -> torch.Tensor:
         # mel->f0 NOTE f0_predictor precision is crucial for causal inference, move self.f0_predictor to cpu if necessary
-        self.f0_predictor.to(torch.float64)
-        f0 = self.f0_predictor(speech_feat.to(torch.float64), finalize=finalize).to(speech_feat)
+        use_sdaa_fp32 = (
+            speech_feat.device.type == "sdaa"
+            and os.getenv("COSYVOICE_SDAA_HIFT_F0_FP32", "")
+            .strip()
+            .lower()
+            in {"1", "true", "yes", "on"}
+            and not torch.is_grad_enabled()
+        )
+        if use_sdaa_fp32:
+            self.f0_predictor.to(
+                device=speech_feat.device,
+                dtype=torch.float32,
+            )
+            with torch.sdaa.amp.autocast(enabled=False):
+                f0 = self.f0_predictor(
+                    speech_feat.float(),
+                    finalize=finalize,
+                ).to(speech_feat)
+        else:
+            self.f0_predictor.to(torch.float64)
+            f0 = self.f0_predictor(
+                speech_feat.to(torch.float64),
+                finalize=finalize,
+            ).to(speech_feat)
         # f0->source
-        s = self.f0_upsamp(f0[:, None]).transpose(1, 2)  # bs,n,t
+        s = _nearest_upsample_1d(
+            f0[:, None],
+            self.f0_upsample_factor,
+        ).transpose(1, 2)  # bs,n,t
         s, _, _ = self.m_source(s)
         s = s.transpose(1, 2)
         if finalize is True:

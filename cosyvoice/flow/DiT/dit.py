@@ -23,7 +23,10 @@ from cosyvoice.flow.DiT.modules import (
     DiTBlock,
     AdaLayerNormZero_Final,
     precompute_freqs_cis,
+    precompute_sdaa_flow_rope,
     get_pos_embed_indices,
+    can_use_sdaa_fused_flow_norm,
+    can_use_sdaa_unmasked_flow_attention,
 )
 
 
@@ -156,17 +159,38 @@ class DiT(nn.Module):
         x = self.input_embed(x, cond, mu, spks.squeeze(1))
 
         rope = self.rotary_embed.forward_from_seq_len(seq_len)
+        rope = precompute_sdaa_flow_rope(rope, x)
 
         if self.long_skip_connection is not None:
             residual = x
 
-        if streaming is True:
+        if can_use_sdaa_unmasked_flow_attention(mask, streaming):
+            attn_mask = None
+        elif streaming is True:
             attn_mask = add_optional_chunk_mask(x, mask.bool(), False, False, 0, self.static_chunk_size, -1).unsqueeze(dim=1)
         else:
             attn_mask = add_optional_chunk_mask(x, mask.bool(), False, False, 0, 0, -1).repeat(1, x.size(1), 1).unsqueeze(dim=1)
 
-        for block in self.transformer_blocks:
-            x = block(x, t, mask=attn_mask.bool(), rope=rope)
+        block_mask = None if attn_mask is None else attn_mask.bool()
+        if can_use_sdaa_fused_flow_norm(x):
+            prepared = self.transformer_blocks[0].attn_norm(x, emb=t)
+            for index, block in enumerate(self.transformer_blocks):
+                next_block = (
+                    self.transformer_blocks[index + 1]
+                    if index + 1 < len(self.transformer_blocks)
+                    else None
+                )
+                x, prepared = block.forward_prepared(
+                    x,
+                    t,
+                    prepared,
+                    mask=block_mask,
+                    rope=rope,
+                    next_block=next_block,
+                )
+        else:
+            for block in self.transformer_blocks:
+                x = block(x, t, mask=block_mask, rope=rope)
 
         if self.long_skip_connection is not None:
             x = self.long_skip_connection(torch.cat((x, residual), dim=-1))

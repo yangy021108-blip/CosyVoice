@@ -312,6 +312,10 @@ class EngineTest(unittest.TestCase):
             "api_server.engine.metadata.version", return_value="4.57.1"
         ):
             vllm_engine._validate_runtime_dependencies()
+        with patch(
+            "api_server.engine.metadata.version", return_value="4.57.3"
+        ):
+            vllm_engine._validate_runtime_dependencies()
 
 
 if __name__ == "__main__":

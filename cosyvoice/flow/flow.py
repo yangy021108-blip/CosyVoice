@@ -22,6 +22,17 @@ from cosyvoice.utils.mask import make_pad_mask
 from cosyvoice.utils.onnx import SpeechTokenExtractor, online_feature, onnx_path
 
 
+def _sdaa_inference_flow_steps(device: torch.device) -> int:
+    if device.type != "sdaa" or torch.is_grad_enabled():
+        return 10
+    raw_value = os.getenv("COSYVOICE_SDAA_FLOW_STEPS", "10").strip()
+    try:
+        steps = int(raw_value)
+    except ValueError:
+        return 10
+    return steps if 1 <= steps <= 100 else 10
+
+
 class MaskedDiffWithXvec(torch.nn.Module):
     def __init__(self,
                  input_size: int = 512,
@@ -137,7 +148,7 @@ class MaskedDiffWithXvec(torch.nn.Module):
             mask=mask.unsqueeze(1),
             spks=embedding,
             cond=conds,
-            n_timesteps=10,
+            n_timesteps=_sdaa_inference_flow_steps(h.device),
             prompt_len=mel_len1,
             cache=flow_cache
         )
@@ -273,7 +284,7 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
             mask=mask.unsqueeze(1),
             spks=embedding,
             cond=conds,
-            n_timesteps=10,
+            n_timesteps=_sdaa_inference_flow_steps(h.device),
             streaming=streaming
         )
         feat = feat[:, :, mel_len1:]
@@ -406,7 +417,7 @@ class CausalMaskedDiffWithDiT(torch.nn.Module):
             mask=mask.unsqueeze(1),
             spks=embedding,
             cond=conds,
-            n_timesteps=10,
+            n_timesteps=_sdaa_inference_flow_steps(h.device),
             streaming=streaming
         )
         feat = feat[:, :, mel_len1:]

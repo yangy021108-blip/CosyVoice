@@ -145,25 +145,22 @@ def ras_sampling(weighted_scores, decoded_tokens, sampling, top_p=0.8, top_k=25,
 
 
 def nucleus_sampling(weighted_scores, top_p=0.8, top_k=25):
-    prob, indices = [], []
-    cum_prob = 0.0
-    sorted_value, sorted_idx = weighted_scores.softmax(dim=0).sort(descending=True, stable=True)
-    for i in range(len(sorted_idx)):
-        # sampling both top-p and numbers.
-        if cum_prob < top_p and len(prob) < top_k:
-            cum_prob += sorted_value[i]
-            prob.append(sorted_value[i])
-            indices.append(sorted_idx[i])
-        else:
-            break
-    prob = torch.tensor(prob).to(weighted_scores)
-    indices = torch.tensor(indices, dtype=torch.long).to(weighted_scores.device)
+    candidate_count = min(top_k, weighted_scores.numel())
+    prob, indices = weighted_scores.softmax(dim=0).topk(
+        candidate_count, sorted=True
+    )
+    # Keep the item that crosses top_p, matching the original loop's
+    # "check before append" behavior without requiring a stable full sort.
+    keep = (prob.cumsum(dim=0) - prob) < top_p
+    prob = prob[keep].float().cpu()
+    indices = indices[keep].cpu()
     top_ids = indices[prob.multinomial(1, replacement=True)].item()
     return top_ids
 
 
 def random_sampling(weighted_scores, decoded_tokens, sampling):
-    top_ids = weighted_scores.softmax(dim=0).multinomial(1, replacement=True).item()
+    prob = weighted_scores.softmax(dim=0).float().cpu()
+    top_ids = prob.multinomial(1, replacement=True).item()
     return top_ids
 
 

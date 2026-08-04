@@ -1,443 +1,232 @@
-# CosyVoice HTTP API
+# CosyVoice API 调用逻辑与代码结构
 
-[中文使用指南](README_zh.md) |
-[当前服务器 vLLM Docker 详解](VLLM_DOCKER.md)
+本文说明 `api_server` 的 HTTP 行为、内部调用链、配置方式和目录内各文件的
+职责。TECO SDAA 上 PyTorch/vLLM backend 的双终端启动与推理命令见
+[`README_SDAA.md`](README_SDAA.md)。
 
-This package adds a small product-facing HTTP layer without changing the model
-implementation under `cosyvoice/`.
+## 1. 服务定位
 
-## Current scope
+服务提供 OpenAI 风格的非流式文本转语音接口，但只实现本文列出的字段：
 
-- `POST /v1/audio/speech`: OpenAI-style JSON request and WAV/PCM response.
-- `GET /health` and `GET /ready`: process and model readiness checks.
-- `GET /v1/models` and `GET /v1/audio/voices`: discover loaded capabilities.
-- One model process and one GPU inference at a time by default.
-- Bearer authentication for non-loopback deployments, bounded admission,
-  request IDs, stable errors, and basic latency/RTF response headers.
+| 方法 | 路径 | 鉴权 | 作用 |
+| --- | --- | --- | --- |
+| `GET` | `/health` | 无 | HTTP 进程存活检查 |
+| `GET` | `/ready` | 无 | 模型和音色缓存是否加载完成 |
+| `GET` | `/v1/models` | Bearer API Key | 查询模型别名、采样率和输出格式 |
+| `GET` | `/v1/audio/voices` | Bearer API Key | 查询服务端注册的音色 ID |
+| `POST` | `/v1/audio/speech` | Bearer API Key | 生成 WAV 或裸 PCM16 |
 
-The first version is intentionally non-streaming. It does not pretend to
-support MP3/Opus, SSML, pitch control, arbitrary sample rates, or word
-timestamps. These parameters are rejected instead of silently ignored.
+当前支持：
 
-## Start the server
+- CosyVoice3 zero-shot 音色和模型自带的 SFT speaker；
+- zero-shot 音色的 `instructions` 风格指令；
+- 24 kHz 单声道 PCM16 WAV，以及无文件头的 PCM16 little-endian；
+- API Key、请求 ID、有限队列、超时、统一错误响应和音频质量门禁。
 
-Run from the repository root in the existing CosyVoice Python environment:
+当前不支持流式输出、MP3、Opus、SSML、任意采样率、pitch、时间戳和客户端
+上传参考音频。请求中的未知字段会返回 400。
 
-```bash
-export CUDA_VISIBLE_DEVICES=0
-export COSYVOICE_API_KEY='replace-with-a-secret'
-python -m api_server.main
-```
+`COSYVOICE_LOAD_VLLM=true` 不是启动通用的 `vllm serve`。CosyVoice 只把
+LLM/speech-token 生成阶段交给进程内的 vLLM Engine，prompt embedding、
+Flow/DiT、HiFT/Vocoder 和 HTTP API 仍由同一个 CosyVoice 进程负责。
 
-The regular PyTorch backend must use the runtime dependency set, including
-`transformers==4.51.3`. Verify the active environment before starting:
-
-```bash
-python -c "import torch, transformers; print('torch=', torch.__version__, 'transformers=', transformers.__version__)"
-```
-
-If the command reports another Transformers version, restore the regular
-backend dependencies with this single-line command:
-
-```bash
-python -m pip install --upgrade "transformers==4.51.3" "tokenizers>=0.21,<0.22"
-```
-
-Do not install `requirements-vllm.txt` into the regular PyTorch environment.
-Its `transformers==4.57.1` pin is for `COSYVOICE_LOAD_VLLM=true` and must use a
-separate environment or image. The server checks this at startup because the
-wrong Transformers backend can produce fluent-looking WAV files whose speech
-does not match the input text.
-
-For an isolated CUDA environment, build the API image from the small
-`api_server` context and mount the repository (the model stays outside the
-image):
-
-```bash
-docker build -t cosyvoice-api:dev -f api_server/Dockerfile api_server
-
-docker run --rm --gpus device=4 \
-  -p 8000:8000 \
-  -v "$PWD:/workspace/CosyVoice" \
-  -e COSYVOICE_HOST=0.0.0.0 \
-  -e COSYVOICE_API_KEY='replace-with-a-secret' \
-  cosyvoice-api:dev
-```
-
-The image intentionally supplies PyTorch/torchaudio as a matched pair in the
-base layer instead of reinstalling the older CUDA wheels from the repository's
-training-oriented `requirements.txt`.
-
-### Verified vLLM Docker workflow on the current server
-
-The HTTP entry point remains `python -m api_server.main`. Setting
-`COSYVOICE_LOAD_VLLM=true` replaces only CosyVoice's LLM/speech-token stage
-with the embedded vLLM V1 engine; it does not start a separate `vllm serve`
-process.
-
-The Docker data root on the current server has less than 5 GB free, so a
-second self-contained CUDA/PyTorch image cannot be built safely there. The
-verified deployment uses the thin `Dockerfile.vllm`, reuses the locally
-available CUDA base image, and mounts a dedicated copy of the Python
-environment from `/SharedData`. The copied environment occupies about 31 GB
-on `/SharedData` and does not change the PyTorch environment used by port
-8010.
-
-Run every command below from `/SharedData/yangyu/CosyVoice`. Build the thin
-image:
-
-```bash
-docker build -t cosyvoice-api:vllm-test -f api_server/Dockerfile.vllm api_server
-```
-
-Copy the known-good environment once. Run the following block line by line;
-the conditional prevents a second copy:
-
-```bash
-if [ ! -d /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice ]; then
-  mkdir -p /SharedData/yangyu/cosyvoice_vllm_env
-  docker cp vllm_env_yy:/opt/conda/envs/cosyvoice /SharedData/yangyu/cosyvoice_vllm_env
-fi
-```
-
-Install the vLLM dependency set only in that copy:
-
-```bash
-docker run --rm \
-  -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice \
-  -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
-  cosyvoice-api:vllm-test \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -m pip install \
-  --no-cache-dir \
-  -r /workspace/CosyVoice/api_server/requirements-vllm.txt
-```
-
-Confirm both the isolated versions and GPU access:
-
-```bash
-docker run --rm \
-  --runtime nvidia \
-  -e NVIDIA_VISIBLE_DEVICES=6 \
-  -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice \
-  -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
-  cosyvoice-api:vllm-test \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -c 'import torch; from importlib import metadata; print(torch.cuda.get_device_name(0)); print("torch", metadata.version("torch"), "vllm", metadata.version("vllm"), "transformers", metadata.version("transformers"), "numpy", metadata.version("numpy"))'
-```
-
-The verified versions are PyTorch 2.8.0, vLLM 0.11.0, Transformers 4.57.1,
-and NumPy 1.26.4. Do not install this Transformers version into the original
-PyTorch environment, which must remain on Transformers 4.51.3.
-
-Choose one of the following API-key modes.
-
-#### Mode A: protected host environment file
-
-Create the file outside the repository on the Docker host, then open it in an
-editor:
-
-```bash
-touch /SharedData/yangyu/cosyvoice_vllm_api.env
-chmod 600 /SharedData/yangyu/cosyvoice_vllm_api.env
-vim /SharedData/yangyu/cosyvoice_vllm_api.env
-```
-
-Put the following values in the file, replacing the API key placeholder:
-
-```dotenv
-COSYVOICE_MODEL_DIR=/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B
-COSYVOICE_PORT=8011
-COSYVOICE_API_KEY=replace-with-a-secret
-```
-
-`--env-file` reads these values while creating the container; it does not
-mount the file into the container. Therefore, it is normal that
-`/SharedData/yangyu/cosyvoice_vllm_api.env` cannot be found from a shell
-inside `cosyvoice_api_vllm_yy`.
-
-#### Mode B: specify the API key when starting the service
-
-This mode does not require `cosyvoice_vllm_api.env`. Omit the following line
-from the `docker create` command below:
+## 2. 启动调用链
 
 ```text
---env-file /SharedData/yangyu/cosyvoice_vllm_api.env
+python -m api_server.main
+        │
+        ├─ Settings.from_env()             读取并校验环境变量
+        ├─ VoiceStore.from_json()          读取服务端音色注册表
+        ├─ create_app()                    创建 FastAPI、路由和并发控制器
+        └─ FastAPI lifespan
+              └─ CosyVoiceEngine.load()
+                    ├─ 校验 backend 对应的 Transformers 版本
+                    ├─ AutoModel(model_dir, load_vllm, fp16)
+                    ├─ 验证 SFT spk_id
+                    └─ 预处理并缓存 zero-shot 音色
 ```
 
-The model directory, port, and API key will instead be passed to `docker exec`
-in shell A. The vLLM image sets `COSYVOICE_LOAD_VLLM=true` and the
-real-model-tested default seed `0`; all other service settings use the
-conservative defaults from `api_server/config.py`. Do not store API keys in
-`api_server/voices.json`: that file is the voice registry, may be committed
-to Git, and is not an authentication configuration file.
+`main.py` 固定只启动一个 Uvicorn worker。模型加载放在 FastAPI lifespan
+中执行；如果加载失败，HTTP 进程仍可返回 `/health`，但 `/ready` 返回 503，
+日志中会保留加载异常。
 
-The remaining steps deliberately separate image construction, container
-creation, container startup, and API-process startup. A stopped container
-cannot accept `docker exec`; always run `docker start` before `docker exec`.
+SDAA 环境中的 `campplus.onnx` 和 `speech_tokenizer_v3.onnx` 只用于启动期
+zero-shot 音色预处理。当前 TECO 3.2.0 镜像没有 ONNX Runtime SDAA
+Execution Provider，这两个辅助模型使用 CPU provider 运行一次并缓存；
+LLM、Flow/DiT 和 HiFT/Vocoder 主推理仍在 SDAA 上。
 
-Check whether an older test container exists. Remove it only when it appears
-in the first command. Container creation is a one-time operation:
+## 3. 单次语音请求调用链
 
-```bash
-docker ps -a --filter name=cosyvoice_api_vllm_yy
-docker rm -f cosyvoice_api_vllm_yy
+```text
+HTTP request
+    │
+    ├─ request-id middleware
+    ├─ Bearer API Key
+    ├─ Pydantic 严格字段校验
+    ├─ model / text length / voice / instructions 校验
+    ├─ admission semaphore       限制“运行中 + 排队中”请求总数
+    ├─ inference semaphore       限制进入推理的请求数
+    └─ CosyVoiceEngine.synthesize()
+          ├─ inference lock      保护单模型实例
+          ├─ 设置 Python/NumPy/Torch/SDAA/vLLM seed
+          ├─ 按音色模式分派 CosyVoice inference_*()
+          ├─ 收集所有 tts_speech chunk
+          ├─ 音频质量门禁与可选换 seed 重试
+          ├─ float waveform → PCM16
+          └─ WAV 封装或裸 PCM
+                └─ HTTP response + 性能/质量响应头
 ```
 
-Prepare the persistent cache:
+详细行为：
 
-```bash
-mkdir -p /SharedData/yangyu/cosyvoice_vllm_cache
-```
+1. `app.py` 接受客户端 `X-Request-ID`，未提供时生成 UUID，并在响应中返回。
+2. 鉴权使用 `hmac.compare_digest()` 比较 Bearer token。
+3. `schemas.py` 禁止未知字段，并校验语速、格式、instructions 和 seed 范围。
+4. 总接纳量为
+   `COSYVOICE_MAX_CONCURRENCY + COSYVOICE_MAX_QUEUE_SIZE`；没有空位时立即
+   返回 429。
+5. GPU 推理在线程中执行。HTTP 超时或客户端断开不能安全终止已进入 GPU
+   的 Python 线程，因此并发名额会等后台推理真正结束后再释放。
+6. `engine.py` 目前还有进程级推理锁；同一个模型实例保持串行最安全。
+7. 推理结束后先做质量检查，只有通过的候选才会编码成音频响应。
 
-Create a persistent container on physical GPU 6. The final `sleep infinity`
-keeps only the container alive; it does not start the API service:
+## 4. PyTorch 与 vLLM backend 的区别
 
-```bash
-docker create \
-  --name cosyvoice_api_vllm_yy \
-  --runtime nvidia \
-  -e NVIDIA_VISIBLE_DEVICES=6 \
-  --ipc=host \
-  --network host \
-  --env-file /SharedData/yangyu/cosyvoice_vllm_api.env \
-  -v /SharedData/yangyu/CosyVoice:/workspace/CosyVoice \
-  -v /SharedData/yangyu/cosyvoice_vllm_env/cosyvoice:/opt/conda/envs/cosyvoice:ro \
-  -v /SharedData/yangyu/cosyvoice_vllm_cache:/root/.cache \
-  cosyvoice-api:vllm-test \
-  sleep infinity
-```
+两种 backend 使用同一套 HTTP 路由、音色、Flow/DiT、HiFT、音频编码和质量
+门禁，仅 speech-token 生成方式不同：
 
-In mode A, the environment-file values are copied into the container
-configuration at creation time. Recreate the container after changing those
-values. This does not apply to mode B.
+| 配置 | speech-token 阶段 | 后续阶段 |
+| --- | --- | --- |
+| `COSYVOICE_LOAD_VLLM=false` | CosyVoice 原生 PyTorch LLM 解码 | Flow/DiT → HiFT |
+| `COSYVOICE_LOAD_VLLM=true` | 进程内 vLLM Engine 解码 | Flow/DiT → HiFT |
 
-Start the container. Run the same command after a host reboot or after
-`docker stop`:
+`engine.py` 启动时会校验依赖，防止加载错误版本后仍生成语义错误或断续音频：
 
-```bash
-docker start cosyvoice_api_vllm_yy
-```
+- PyTorch backend：`transformers==4.51.3`；
+- vLLM backend：代码接受 `transformers==4.57.1` 或 `4.57.3`。
 
-In shell A, start the CosyVoice API process in the foreground. With mode A,
-run:
+不要在两个容器环境之间混装 requirements。
 
-```bash
-docker exec -it cosyvoice_api_vllm_yy \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -m api_server.main
-```
+## 5. 请求字段
 
-With mode B, enter a key without echoing it to the terminal:
+`POST /v1/audio/speech` 请求体：
 
-```bash
-read -rsp "API Key: " COSYVOICE_API_KEY
-```
+| 字段 | 必填 | 取值/限制 | 说明 |
+| --- | --- | --- | --- |
+| `model` | 是 | 当前为 `cosyvoice3-0.5b` | 服务端模型别名 |
+| `input` | 是 | 非空，默认最多 2000 字符 | 待合成文本 |
+| `voice` | 是 | `/v1/audio/voices` 返回的 ID | 服务端注册音色 |
+| `response_format` | 否 | `wav`、`pcm`，默认 `wav` | 输出格式 |
+| `speed` | 否 | `0.5`–`2.0`，默认 `1.0` | 语速 |
+| `instructions` | 否 | 最多 1000 字符 | 只允许 zero-shot 音色 |
+| `seed` | 否 | `0`–`4294967295` | 固定 speech-token 采样 |
 
-```bash
-echo
-```
-
-Then pass only the model directory, port, and API key to the new process:
-
-```bash
-docker exec -it \
-  -e COSYVOICE_MODEL_DIR=/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B \
-  -e COSYVOICE_PORT=8011 \
-  -e COSYVOICE_API_KEY="${COSYVOICE_API_KEY}" \
-  cosyvoice_api_vllm_yy \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -m api_server.main
-```
-
-The three explicit settings are the only ones required for this image.
-`COSYVOICE_HOST` defaults to `127.0.0.1`; text length, concurrency, queue,
-timeout, and quality-check settings retain their documented defaults. The
-vLLM image uses the tested default seed `0`.
-
-This is the CosyVoice equivalent of the requested "vLLM serve" window.
-Do not replace it with the generic `vllm serve` command: CosyVoice uses vLLM
-only for its LLM/speech-token stage, while the same process must also run
-Flow, DiT, the vocoder, and `/v1/audio/speech`. The first service startup
-exports vLLM weights, runs `torch.compile`, and captures CUDA Graphs. Keep
-shell A open until both `Initializing a V1 LLM engine (v0.11.0)` and
-`Uvicorn running on http://127.0.0.1:8011` appear.
-
-In shell B, check readiness:
-
-```bash
-curl --fail http://127.0.0.1:8011/health
-curl --fail http://127.0.0.1:8011/ready
-```
-
-Set the client key with the same mode used in shell A. For mode A:
-
-```bash
-API_KEY="$(sed -n 's/^COSYVOICE_API_KEY=//p' /SharedData/yangyu/cosyvoice_vllm_api.env)"
-```
-
-For mode B, type the same key:
-
-```bash
-read -rsp "API Key: " API_KEY
-```
-
-```bash
-echo
-```
-
-Then perform authenticated model discovery:
-
-```bash
-curl --fail-with-body http://127.0.0.1:8011/v1/models \
-  -H "Authorization: Bearer ${API_KEY}"
-```
-
-Run a real vLLM-backed synthesis request:
-
-```bash
-curl --fail-with-body \
-  --request POST \
-  http://127.0.0.1:8011/v1/audio/speech \
-  -H "Authorization: Bearer ${API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"cosyvoice3-0.5b","input":"你好，这是 CosyVoice vLLM API 的真实推理测试。","voice":"default","response_format":"wav","speed":1.0}' \
-  --output vllm_result.wav
-```
-
-Validate the generated WAV with Python inside the running container; this does
-not require `ffprobe` on the host:
-
-```bash
-docker exec cosyvoice_api_vllm_yy \
-  /opt/conda/envs/cosyvoice/bin/python \
-  -c 'import wave; f = wave.open("/workspace/CosyVoice/vllm_result.wav", "rb"); print("sample_rate", f.getframerate()); print("channels", f.getnchannels()); print("sample_width", f.getsampwidth()); print("duration", round(f.getnframes() / f.getframerate(), 2))'
-```
-
-The tested request returned HTTP 200, a 24 kHz mono PCM16 WAV, 6.08 seconds
-of audio, RTF 0.2599, and zero clipped samples. An independent ASR check
-matched the requested sentence (apart from spelling the spoken `vLLM`
-abbreviation as `VLM`).
-
-The separated lifecycle was also tested: `docker start` brought up only the
-idle container, `docker exec` made the API ready, shell B generated a valid
-24 kHz mono PCM16 WAV, and the same start/exec sequence restored the service
-after `docker stop`. Mode B was tested with a container that had no
-environment file or persistent API key: an unauthenticated request returned
-HTTP 401, while the key passed to `docker exec -e` authorized a real
-synthesis request.
-
-The vLLM path forwards the request seed to `SamplingParams`. Repeating the
-same mixed Chinese/English request with the same seed produced byte-identical
-WAV files in the real-model test. The quality guard also accounts for spoken
-Latin words and acronyms such as `CosyVoice`, `vLLM`, and `API`.
-
-To stop only the API process, press `Ctrl+C` in shell A. The persistent
-container remains running. To stop it as well:
-
-```bash
-docker stop cosyvoice_api_vllm_yy
-```
-
-To use it again, first start the container, then repeat the mode A or mode B
-`docker exec` command in shell A:
-
-```bash
-docker start cosyvoice_api_vllm_yy
-```
-
-Useful settings:
-
-| Environment variable | Default |
-| --- | --- |
-| `COSYVOICE_MODEL_ALIAS` | `cosyvoice3-0.5b` |
-| `COSYVOICE_MODEL_DIR` | `pretrained_models/Fun-CosyVoice3-0.5B` |
-| `COSYVOICE_VOICES_FILE` | `api_server/voices.json` |
-| `COSYVOICE_HOST` / `COSYVOICE_PORT` | `127.0.0.1` / `8000` |
-| `COSYVOICE_ALLOW_UNAUTHENTICATED` | `false` |
-| `COSYVOICE_MAX_TEXT_CHARACTERS` | `2000` |
-| `COSYVOICE_MAX_CONCURRENCY` | `1` |
-| `COSYVOICE_MAX_QUEUE_SIZE` | `16` |
-| `COSYVOICE_REQUEST_TIMEOUT_SECONDS` | `600` |
-| `COSYVOICE_FP16` / `COSYVOICE_LOAD_VLLM` | `false` / `false` |
-| `COSYVOICE_DEFAULT_SEED` | `2` |
-| `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` |
-| `COSYVOICE_QUALITY_MAX_RETRIES` | `2` |
-
-Use exactly one Uvicorn worker. Multiple workers load multiple copies of the
-model and duplicate GPU memory.
-
-Binding to a non-loopback address without `COSYVOICE_API_KEY` is rejected.
-`COSYVOICE_ALLOW_UNAUTHENTICATED=true` is an explicit escape hatch for a
-trusted, isolated environment; it should not be used for an external service.
-Put public deployments behind an HTTPS gateway that enforces request-size
-limits, per-key/IP rate limits, connection/response timeouts, and access logs.
-
-## Synthesize speech
-
-The commands in this section are intentionally one physical line so they can
-be pasted into Bash without line-continuation whitespace errors.
-
-```bash
-curl --fail-with-body --request POST http://127.0.0.1:8000/v1/audio/speech -H "Authorization: Bearer replace-with-a-secret" -H "Content-Type: application/json" -d '{"model":"cosyvoice3-0.5b","input":"你好，这是一次 CosyVoice API 测试。","voice":"default","response_format":"wav","speed":1.0}' --output result.wav
-```
-
-Optional style control uses the OpenAI-compatible plural field name:
+示例：
 
 ```json
 {
-  "instructions": "请用四川话、开心地说这句话"
+  "model": "cosyvoice3-0.5b",
+  "input": "你好，这是一次 CosyVoice API 测试。",
+  "voice": "default",
+  "response_format": "wav",
+  "speed": 1.0,
+  "seed": 2
 }
 ```
 
-CosyVoice speech-token generation is stochastic. Requests without `seed` start
-from the tested default seed and automatically retry with the next seed when
-the generated audio is obviously too short, too long for the input, or mostly
-silent. Set an unsigned 32-bit `seed` explicitly when exact reproducibility is
-more important than automatic retry. The selected seed, retry count, and
-silence ratio are returned in `X-Generation-Seed`, `X-Quality-Retry-Count`, and
-`X-Silent-Frame-Ratio`.
+给 SFT 音色传 `instructions` 会在进入推理队列前返回
+`400 unsupported_parameter`。
 
-If all automatic attempts fail the quality guard, the API returns 503 with
-`code=audio_quality_failed` instead of serving known-degenerate audio. The
-quality guard can be disabled for diagnostics with
-`COSYVOICE_QUALITY_CHECK_ENABLED=false`.
+## 6. Seed 与质量门禁
 
-The built-in `default` voice is configured from `asset/zero_shot_prompt.wav`.
-Clients never submit server-side paths. Add server-owned voices in
-`api_server/voices.json`; zero-shot prompt features are cached once at model
-startup for ordinary synthesis. `prompt_text` must contain the exact spoken
-transcript of `prompt_audio` after the CosyVoice3 system prefix, including
-punctuation. Restart the API after changing either value. To verify speaker
-identity first, send a request without `instructions`, because dialect and
-emotion instructions intentionally alter delivery.
+未显式传 `seed` 时：
 
-Use a clear, single-speaker reference without music or long silence. A very
-quiet reference can produce mostly silent output. This one-line command trims
-leading/trailing silence, normalizes loudness, and writes a 16 kHz mono PCM WAV:
+1. 从 `COSYVOICE_DEFAULT_SEED` 开始；
+2. 候选音频未通过质量门禁时依次尝试下一个 seed；
+3. 最多额外尝试 `COSYVOICE_QUALITY_MAX_RETRIES` 次；
+4. 所有候选都失败时返回 `503 audio_quality_failed`。
 
-```bash
-ffmpeg -y -i asset/my_prompt.wav -af "silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,areverse,loudnorm=I=-24:LRA=7:TP=-3" -ar 16000 -ac 1 -c:a pcm_s16le asset/my_prompt_clean.wav
+显式传 `seed` 用于复现结果，同时关闭自动换 seed。某个显式 seed 可能被
+质量门禁拒绝，这是正常行为；客户端必须先检查 HTTP 状态和 `Content-Type`，
+不能把 503 JSON 错误体保存成 `.wav`。
+
+当前质量门禁检查：
+
+- 空数组、NaN 或 Infinity；
+- 音频过短或相对文本异常长；
+- 20 ms 帧中低于 -50 dBFS 的静音比例是否过高；
+- 按中日韩字符、英文单词和缩写估算的有效发音时长是否不足。
+
+实际返回使用的 seed 位于 `X-Generation-Seed`，自动换 seed 次数位于
+`X-Quality-Retry-Count`。
+
+## 7. 音色注册与分派
+
+客户端只能提交音色 ID，不能提交服务器文件路径。音色由
+`api_server/voices.json` 管理，修改后必须重启服务。
+
+当前注册表只有：
+
+```text
+default  zero_shot  Default zero-shot voice
 ```
 
-PCM responses are mono signed 16-bit little-endian at the model-native 24 kHz
-sample rate. WAV responses contain the same samples with a complete WAV header.
-On a headless server, convert raw PCM to WAV and play or download the WAV:
+zero-shot 示例：
 
-```bash
-ffmpeg -y -f s16le -ar 24000 -ac 1 -i result.pcm result_pcm.wav
+```json
+{
+  "my_voice": {
+    "name": "My zero-shot voice",
+    "mode": "zero_shot",
+    "prompt_text": "You are a helpful assistant.<|endofprompt|>参考音频文本。",
+    "prompt_audio": "asset/my_prompt.wav"
+  }
+}
 ```
 
-On a machine with an audio device, PCM can also be played without an SDL video
-window:
+要求：
 
-```bash
-ffplay -nodisp -autoexit -f s16le -ar 24000 -ac 1 result.pcm
+- 音色 ID 只允许字母、数字、下划线、点和短横线，最长 128；
+- `prompt_audio` 必须位于仓库目录内；
+- `prompt_text` 必须与参考音频实际内容一致；
+- 服务启动时调用 `add_zero_shot_spk()` 缓存音色；
+- 普通 zero-shot 请求按缓存 ID 调用 `inference_zero_shot()`；
+- 带 `instructions` 的 zero-shot 请求调用 `inference_instruct2()`。
+
+SFT 示例：
+
+```json
+{
+  "sft_female": {
+    "name": "Built-in female voice",
+    "mode": "sft",
+    "spk_id": "模型中真实存在的 speaker ID"
+  }
+}
 ```
 
-## Errors
+启动时会通过 `list_available_spks()` 验证 `spk_id`。当前
+`Fun-CosyVoice3-0.5B-2512` 部署没有 `spk2info.pt`，因此没有可直接注册的
+模型内置 SFT speaker；当前可用音色以 `/v1/audio/voices` 返回值为准。
 
-Errors use one stable shape:
+## 8. 成功响应头
+
+| 响应头 | 含义 |
+| --- | --- |
+| `X-Request-ID` | 请求唯一 ID |
+| `X-Audio-Sample-Rate` | 输出采样率 |
+| `X-Audio-Channels` | 声道数，当前为 1 |
+| `X-Audio-Duration` | 音频时长，秒 |
+| `X-Queue-Wait-Ms` | 等待推理名额的时间 |
+| `X-Inference-Latency-Ms` | 模型推理和音频收集耗时 |
+| `X-Real-Time-Factor` | 推理耗时除以音频时长 |
+| `X-Generation-Seed` | 最终实际使用的 seed |
+| `X-Quality-Retry-Count` | 质量门禁触发的换 seed 次数 |
+| `X-Silent-Frame-Ratio` | 低于 -50 dBFS 的 20 ms 帧比例 |
+
+## 9. 错误格式
+
+所有业务错误使用稳定 JSON：
 
 ```json
 {
@@ -451,9 +240,83 @@ Errors use one stable shape:
 }
 ```
 
-## Tests and smoke check
+常见状态：
 
-Contract and audio encoding tests do not load the model:
+| HTTP | `code` | 含义 |
+| ---: | --- | --- |
+| 400 | `invalid_parameter` | 字段类型、范围或未知字段错误 |
+| 400 | `unsupported_parameter` | 不支持的参数组合 |
+| 401 | `invalid_api_key` | API Key 缺失或错误 |
+| 404 | `model_not_found` / `voice_not_found` | 模型或音色不存在 |
+| 413 | `input_too_large` | 文本超过长度限制 |
+| 429 | `queue_full` | 运行中和排队中请求已满 |
+| 503 | `model_not_ready` | 模型尚未加载或加载失败 |
+| 503 | `audio_quality_failed` | 所有候选音频均被质量门禁拒绝 |
+| 504 | `inference_timeout` | HTTP 等待推理超时 |
+
+## 10. 环境变量
+
+| 环境变量 | 代码默认值 | 作用 |
+| --- | --- | --- |
+| `COSYVOICE_MODEL_ALIAS` | `cosyvoice3-0.5b` | 对外模型名 |
+| `COSYVOICE_MODEL_DIR` | `pretrained_models/Fun-CosyVoice3-0.5B` | 模型目录 |
+| `COSYVOICE_VOICES_FILE` | `api_server/voices.json` | 音色注册表 |
+| `COSYVOICE_API_KEY` | 未设置 | Bearer API Key |
+| `COSYVOICE_HOST` | `127.0.0.1` | 监听地址 |
+| `COSYVOICE_PORT` | `8000` | 监听端口 |
+| `COSYVOICE_ALLOW_UNAUTHENTICATED` | `false` | 是否显式允许非回环无鉴权 |
+| `COSYVOICE_MAX_TEXT_CHARACTERS` | `2000` | 文本长度上限 |
+| `COSYVOICE_MAX_CONCURRENCY` | `1` | 推理 semaphore 容量 |
+| `COSYVOICE_MAX_QUEUE_SIZE` | `16` | 额外排队容量 |
+| `COSYVOICE_REQUEST_TIMEOUT_SECONDS` | `600` | HTTP 推理超时 |
+| `COSYVOICE_FP16` | `false` | backend 是否使用 FP16 |
+| `COSYVOICE_LOAD_VLLM` | `false` | 是否启用嵌入式 vLLM |
+| `COSYVOICE_DEFAULT_SEED` | `2` | 未传 seed 时的首个 seed |
+| `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` | 是否开启质量门禁 |
+| `COSYVOICE_QUALITY_MAX_RETRIES` | `2` | 首次候选之后的最大重试数 |
+
+没有 API Key 时，服务只允许绑定回环地址。绑定 `0.0.0.0`、主机名或其他
+非回环地址必须配置 Key，除非主动设置
+`COSYVOICE_ALLOW_UNAUTHENTICATED=true`；共享网络中不建议关闭鉴权。
+
+## 11. 文件职责
+
+| 文件 | 作用 |
+| --- | --- |
+| `__init__.py` | Python package 标识 |
+| `main.py` | `python -m api_server.main` 入口；启动单 worker Uvicorn |
+| `config.py` | 从环境变量构造并校验 `Settings` |
+| `app.py` | FastAPI 工厂、lifespan、鉴权、请求 ID、队列、路由和错误映射 |
+| `schemas.py` | `SpeechRequest` 严格请求模型 |
+| `errors.py` | 稳定的 `ServiceError` 类型 |
+| `voice_store.py` | 解析、校验和查询服务端音色注册表 |
+| `voices.json` | 当前实际音色配置 |
+| `engine.py` | 加载 CosyVoice、选择 backend、seed、推理分派、质量重试和编码 |
+| `audio_codec.py` | waveform 收集、质量分析、PCM16 转换和 WAV 封装 |
+| `smoke_test.py` | 真实 HTTP 冒烟客户端和 WAV 结构/静音/clipping 校验 |
+| `../tools/test_cosyvoice_api.py` | 固定端口的 PyTorch/vLLM 真实 API 验收客户端；保存端点结果、响应头、音频及汇总 |
+| `requirements-runtime.txt` | PyTorch backend 的 API/CosyVoice 依赖 |
+| `requirements-vllm.txt` | vLLM backend 的额外版本约束；不得装入 PyTorch 环境 |
+| `requirements-test.txt` | 不加载真实模型的单元测试依赖 |
+| `Dockerfile.sdaa` | 当前 SDAA API 镜像的 shell-first 元数据层，默认 PID 1 为 bash |
+| `Dockerfile` | 通用 PyTorch/CUDA 参考构建；当前 SDAA 服务器不使用 |
+| `Dockerfile.vllm` | 旧的独立 CUDA vLLM 参考构建；当前 SDAA 服务器不使用 |
+| `README.md` | 本文：API 调用逻辑和代码结构 |
+| `README_SDAA.md` | 当前 TECO SDAA 双终端启动、请求和验收命令 |
+
+测试文件：
+
+| 文件 | 覆盖范围 |
+| --- | --- |
+| `tests/test_config.py` | 环境变量默认值、范围和安全校验 |
+| `tests/test_api.py` | 路由、鉴权、错误、队列、超时和响应头 |
+| `tests/test_engine.py` | backend 分派、seed、质量重试和音色验证 |
+| `tests/test_audio_codec.py` | 音频转换和质量门禁 |
+| `tests/test_smoke.py` | 冒烟客户端的 WAV 验证 |
+
+## 12. 测试
+
+不加载真实模型：
 
 ```bash
 python -m pip install -r api_server/requirements-test.txt
@@ -461,12 +324,87 @@ python -m unittest discover -s api_server/tests -v
 python -m compileall -q api_server
 ```
 
-After starting the real service:
+服务运行后做真实模型验收。脚本从仓库根目录的
+`cosyvoice_sdaa_vllm_api.env` 读取 Key，不在命令行或日志中展开。每次命令
+只发送一种音色模式、instructions 和响应格式组合，避免把不同推理路径的
+结果混在同一个目录。
+
+PyTorch zero-shot、无 instructions、WAV：
 
 ```bash
-python -m api_server.smoke_test --api-key replace-with-a-secret --output smoke.wav
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_api.py \
+  --backend pytorch \
+  --voice-mode zero_shot \
+  --voice default \
+  --response-format wav \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/pytorch_zero_shot_no_instruction_wav
 ```
 
-The smoke client validates the content type, mono 16-bit WAV structure, sample
-rate, non-empty/non-silent audio, duration headers, RTF, and clipping ratio
-before saving the result.
+vLLM zero-shot、无 instructions、WAV：
+
+```bash
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_api.py \
+  --backend vllm \
+  --voice-mode zero_shot \
+  --voice default \
+  --response-format wav \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_zero_shot_no_instruction_wav
+```
+
+vLLM zero-shot、有 instructions、WAV：
+
+```bash
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_api.py \
+  --backend vllm \
+  --voice-mode zero_shot \
+  --voice default \
+  --instructions "请用四川话、开心地说这句话。" \
+  --response-format wav \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_zero_shot_instruction_wav
+```
+
+vLLM zero-shot、无 instructions、裸 PCM：
+
+```bash
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_api.py \
+  --backend vllm \
+  --voice-mode zero_shot \
+  --voice default \
+  --text "这是 PCM 输出测试。" \
+  --response-format pcm \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_zero_shot_no_instruction_pcm
+```
+
+SFT 必须先在 `api_server/voices.json` 注册真实 `spk_id`。注册并重启服务后，
+脚本可以自动选择第一个 SFT 音色，也可以用 `--voice` 指定：
+
+```bash
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_api.py \
+  --backend vllm \
+  --voice-mode sft \
+  --response-format wav \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_sft_no_instruction_wav
+```
+
+当前 `/workspace/model` 没有 `spk2info.pt`，服务只注册了 `default`
+zero-shot 音色。因此当前执行 SFT 命令会在发起语音请求前明确报告
+`no sft voice is registered`，不会生成错误音频。SFT 不允许
+`instructions`，客户端同样会在请求前拒绝这种组合。
+
+脚本固定访问 PyTorch 的 `127.0.0.1:8020` 或 vLLM 的
+`127.0.0.1:8021`，先用 `/v1/audio/voices` 核对音色 ID 和 mode，再检查
+`Content-Type`、24 kHz 单声道 PCM16、有效帧和非全静音。每个输出目录
+写入请求参数 `request.json` 和结果 `results.json`。HTTP 或质量门禁错误只
+保存为 `.error.json`，本次单用例结果为失败，不会把错误 JSON 写成 WAV。
+默认终端只显示类似 curl 的传输摘要；需要排查全部端点、响应头和指标时追加
+`--verbose`，完整结果始终保存在 `results.json`。

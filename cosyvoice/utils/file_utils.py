@@ -93,15 +93,18 @@ def export_cosyvoice2_vllm(model, model_path, device):
     if os.path.exists(model_path):
         return
 
-    dtype = torch.bfloat16
+    # H100 deployments use bfloat16, but TECO SDAA does not support it.
+    # Export the vLLM checkpoint directly in float16 on SDAA so neither the
+    # weights nor prompt embeddings pass through an unsupported dtype.
+    dtype = torch.float16 if device.type == 'sdaa' else torch.bfloat16
+    logging.info('exporting vLLM checkpoint with dtype=%s for device=%s', dtype, device)
     # lm_head
     use_bias = True if model.llm_decoder.bias is not None else False
     model.llm.model.lm_head = model.llm_decoder
     # embed_tokens
     embed_tokens = model.llm.model.model.embed_tokens
     model.llm.model.set_input_embeddings(model.speech_embedding)
-    model.llm.model.to(device)
-    model.llm.model.to(dtype)
+    model.llm.model.to(device=device, dtype=dtype)
     tmp_vocab_size = model.llm.model.config.vocab_size
     tmp_tie_embedding = model.llm.model.config.tie_word_embeddings
     del model.llm.model.generation_config.eos_token_id

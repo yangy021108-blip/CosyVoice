@@ -1,0 +1,8 @@
+# The runtime image already contains Torch-SDAA, TECO vLLM and the API
+# dependencies. Keep PID 1 as an interactive shell so operators can start the
+# container first, then launch api_server.main explicitly with docker exec -it.
+ARG BASE_IMAGE=yangyu/cosyvoice-sdaa-vllm:teco3.2.0-api-runtime
+FROM ${BASE_IMAGE}
+
+WORKDIR /workspace/CosyVoice
+CMD ["/bin/bash"]

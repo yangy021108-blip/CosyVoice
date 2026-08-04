@@ -15,11 +15,40 @@
 # Modified from ESPnet(https://github.com/espnet/espnet)
 """ConvolutionModule definition."""
 
+import os
 from typing import Tuple
 
 import torch
 from torch import nn
 import torch.nn.functional as F
+
+
+def _nearest_upsample_1d(
+    x: torch.Tensor,
+    scale_factor: int,
+    fallback: nn.Upsample,
+) -> torch.Tensor:
+    use_sdaa_fastpath = (
+        os.getenv("COSYVOICE_SDAA_HIFT_NEAREST_UPSAMPLE", "")
+        .strip()
+        .lower()
+        in {"1", "true", "yes", "on"}
+        and x.device.type == "sdaa"
+        and not torch.is_grad_enabled()
+    )
+    if use_sdaa_fastpath:
+        if (
+            os.getenv(
+                "COSYVOICE_SDAA_HIFT_CONTIGUOUS_UPSAMPLE",
+                "",
+            )
+            .strip()
+            .lower()
+            in {"1", "true", "yes", "on"}
+        ):
+            x = x.contiguous()
+        return x.repeat_interleave(scale_factor, dim=-1)
+    return fallback(x)
 
 
 class ConvolutionModule(nn.Module):
@@ -243,10 +272,15 @@ class CausalConv1dUpsample(torch.nn.Conv1d):
                                                    device=device, dtype=dtype)
         assert dilation == 1
         self.causal_padding = kernel_size - 1
+        self.upsample_scale_factor = stride
         self.upsample = torch.nn.Upsample(scale_factor=stride, mode='nearest')
 
     def forward(self, x: torch.Tensor, cache: torch.Tensor = torch.zeros(0, 0, 0)) -> Tuple[torch.Tensor, torch.Tensor]:
-        x = self.upsample(x)
+        x = _nearest_upsample_1d(
+            x,
+            self.upsample_scale_factor,
+            self.upsample,
+        )
         input_timestep = x.shape[2]
         if cache.size(2) == 0:
             x = F.pad(x, (self.causal_padding, 0), value=0.0)

@@ -29,7 +29,7 @@ from api_server.voice_store import VoiceSpec, VoiceStore
 LOGGER = logging.getLogger("cosyvoice.api.quality")
 
 PYTORCH_TRANSFORMERS_VERSION = "4.51.3"
-VLLM_TRANSFORMERS_VERSION = "4.57.1"
+VLLM_TRANSFORMERS_VERSIONS = ("4.57.1", "4.57.3")
 
 
 @dataclass(frozen=True)
@@ -120,10 +120,13 @@ class CosyVoiceEngine:
         )
 
     def _validate_runtime_dependencies(self) -> None:
-        required_version = (
-            VLLM_TRANSFORMERS_VERSION
+        required_versions = (
+            VLLM_TRANSFORMERS_VERSIONS
             if self.settings.load_vllm
-            else PYTORCH_TRANSFORMERS_VERSION
+            else (PYTORCH_TRANSFORMERS_VERSION,)
+        )
+        required_description = " or ".join(
+            f"transformers=={version}" for version in required_versions
         )
         requirements_file = (
             "api_server/requirements-vllm.txt"
@@ -136,13 +139,13 @@ class CosyVoiceEngine:
         except metadata.PackageNotFoundError as exc:
             raise RuntimeError(
                 f"{backend_name} backend requires "
-                f"transformers=={required_version}; transformers is not "
+                f"{required_description}; transformers is not "
                 f"installed. Install {requirements_file}"
             ) from exc
-        if installed_version != required_version:
+        if installed_version not in required_versions:
             raise RuntimeError(
                 f"{backend_name} backend requires "
-                f"transformers=={required_version}; found "
+                f"{required_description}; found "
                 f"transformers=={installed_version}. Install "
                 f"{requirements_file} in a dedicated environment. Mixing "
                 "the PyTorch and vLLM dependency sets can generate garbled "
@@ -244,7 +247,11 @@ class CosyVoiceEngine:
                 pass
             else:
                 torch.manual_seed(seed)
-                torch.cuda.manual_seed_all(seed)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(seed)
+                sdaa = getattr(torch, "sdaa", None)
+                if sdaa is not None and sdaa.is_available():
+                    sdaa.manual_seed_all(seed)
 
         if self.settings.load_vllm and self.backend is not None:
             model = getattr(self.backend, "model", None)
