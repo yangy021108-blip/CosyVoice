@@ -67,7 +67,8 @@ def target_bucket(name: str) -> str | None:
 
 
 def aggregate(
-    events: list[dict[str, Any]], intervals: list[tuple[float, float]], top: int
+    events: list[dict[str, Any]], intervals: list[tuple[float, float]], top: int,
+    category_filter: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, float]]]:
     totals: dict[tuple[str, str], float] = defaultdict(float)
     calls: dict[tuple[str, str], int] = defaultdict(int)
@@ -77,6 +78,8 @@ def aggregate(
         if event.get("ph") != "X" or not any(overlaps(event, interval) for interval in intervals):
             continue
         category = str(event.get("cat", "unknown"))
+        if category_filter is not None and category != category_filter:
+            continue
         name = str(event.get("name", "unknown"))
         duration = float(event.get("dur", 0.0))
         key = (category, name)
@@ -196,11 +199,15 @@ def main() -> int:
     csv_rows: list[dict[str, Any]] = []
     for phase in ("flow", "hift", "full_request"):
         rows, buckets = aggregate(events, intervals[phase], args.top)
+        kernel_rows, _ = aggregate(
+            events, intervals[phase], args.top, category_filter="kernel"
+        )
         phase_duration_ms = sum(end - start for start, end in intervals[phase]) / 1000.0
         phases[phase] = {
             "event_count": len(intervals[phase]),
             "total_stage_duration_ms": phase_duration_ms,
             "top_operators": rows,
+            "top_sdaa_kernels": kernel_rows,
             "target_operation_totals": {
                 name: {
                     "calls": int(value["calls"]),
@@ -211,7 +218,9 @@ def main() -> int:
             },
         }
         for row in rows:
-            csv_rows.append({"phase": phase, **row})
+            csv_rows.append({"phase": phase, "row_type": "top_operator", **row})
+        for row in kernel_rows:
+            csv_rows.append({"phase": phase, "row_type": "top_sdaa_kernel", **row})
 
     result = {
         "trace": str(args.trace),
@@ -231,7 +240,7 @@ def main() -> int:
     )
     args.kernel_summary_csv.parent.mkdir(parents=True, exist_ok=True)
     fields = [
-        "phase", "category", "operator", "calls", "total_us", "total_ms",
+        "phase", "row_type", "category", "operator", "calls", "total_us", "total_ms",
         "mean_us", "input_shape_or_args",
     ]
     with args.kernel_summary_csv.open("w", newline="", encoding="utf-8") as handle:
