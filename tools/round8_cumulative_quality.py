@@ -85,6 +85,7 @@ def audio_health(path: Path, record: dict[str, Any]) -> dict[str, Any]:
         "quality_retry_count": record.get("quality_retry_count"),
         "abnormal_silence": bool(record.get("silent_frame_ratio", 0.0) > 0.9),
         "possible_truncation": bool(waveform.size == 0),
+        "possible_explosion": bool(peak >= 0.999 or clipping_ratio > 0.01),
     }
 
 
@@ -125,6 +126,10 @@ def acoustic_pair(first: dict[str, Any], second: dict[str, Any]) -> dict[str, An
         "sample_rate_equal": first_rate == second_rate,
         "pcm_frames_equal": first_waveform.size == second_waveform.size,
         "duration_equal": first["audio_duration_seconds"] == second["audio_duration_seconds"],
+        "duration_delta_seconds": (
+            float(second["audio_duration_seconds"])
+            - float(first["audio_duration_seconds"])
+        ),
         "wav_sha256_equal": first["wav_sha256"] == second["wav_sha256"],
         "speech_tokens_equal": first["speech_tokens"] == second["speech_tokens"],
         "token_count_equal": first["token_count"] == second["token_count"],
@@ -174,6 +179,7 @@ def main() -> int:
             "finite_count": sum(record["finite"] for record in records),
             "abnormal_silence_count": sum(record["abnormal_silence"] for record in records),
             "possible_truncation_count": sum(record["possible_truncation"] for record in records),
+            "possible_explosion_count": sum(record["possible_explosion"] for record in records),
             "quality_retry_count": sum(int(record["quality_retry_count"]) for record in records),
             "mean_rms": mean([float(record["rms"]) for record in records]),
             "mean_peak": mean([float(record["peak"]) for record in records]),
@@ -222,6 +228,9 @@ def main() -> int:
             "sample_rate_equal_count": sum(pair["sample_rate_equal"] for pair in pairs),
             "pcm_frames_equal_count": sum(pair["pcm_frames_equal"] for pair in pairs),
             "duration_equal_count": sum(pair["duration_equal"] for pair in pairs),
+            "max_abs_duration_delta_seconds": max(
+                abs(float(pair["duration_delta_seconds"])) for pair in pairs
+            ),
             "mean_waveform_correlation": mean([pair["waveform_correlation"] for pair in pairs]),
             "min_waveform_correlation": min(pair["waveform_correlation"] for pair in pairs),
             "mean_snr_db": mean([pair["snr_db"] for pair in pairs]),
