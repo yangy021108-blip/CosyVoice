@@ -135,6 +135,14 @@ def cpu_gap_summary(
     """
     per_request: list[dict[str, float | int]] = []
     all_gaps: list[float] = []
+    kernel_intervals = merge_intervals([
+        (float(event.get("ts", -1)), float(event.get("ts", -1)) + float(event.get("dur", 0.0)))
+        for event in events
+        if event.get("ph") == "X" and event.get("cat") == "kernel"
+        and float(event.get("dur", 0.0)) > 0
+    ])
+    kernel_overlap_total = 0.0
+    gaps_with_kernel_overlap = 0
     for request_start, request_end in full_intervals:
         cpu_intervals: list[tuple[float, float]] = []
         for event in events:
@@ -160,13 +168,38 @@ def cpu_gap_summary(
         if cursor < request_end:
             gaps.append(request_end - cursor)
         visible_gaps = [gap for gap in gaps if gap >= 100.0]
+        gap_kernel_overlap = 0.0
+        cursor = request_start
+        visible_gap_intervals: list[tuple[float, float]] = []
+        for start, end in covered:
+            if start - cursor >= 100.0:
+                visible_gap_intervals.append((cursor, start))
+            cursor = max(cursor, end)
+        if request_end - cursor >= 100.0:
+            visible_gap_intervals.append((cursor, request_end))
+        for gap_start, gap_end in visible_gap_intervals:
+            for kernel_start, kernel_end in kernel_intervals:
+                if kernel_start >= gap_end:
+                    break
+                gap_kernel_overlap += max(
+                    0.0, min(gap_end, kernel_end) - max(gap_start, kernel_start)
+                )
         all_gaps.extend(visible_gaps)
+        kernel_overlap_total += gap_kernel_overlap
+        gaps_with_kernel_overlap += sum(
+            any(
+                min(gap_end, kernel_end) > max(gap_start, kernel_start)
+                for kernel_start, kernel_end in kernel_intervals
+            )
+            for gap_start, gap_end in visible_gap_intervals
+        )
         per_request.append({
             "request_duration_ms": (request_end - request_start) / 1000.0,
             "aten_covered_ms": sum(end - start for start, end in covered) / 1000.0,
             "visible_gap_count_ge_100us": len(visible_gaps),
             "visible_gap_ms_ge_100us": sum(visible_gaps) / 1000.0,
             "largest_visible_gap_ms": max(visible_gaps, default=0.0) / 1000.0,
+            "kernel_overlap_during_visible_gaps_ms": gap_kernel_overlap / 1000.0,
         })
     return {
         "definition": (
@@ -177,6 +210,8 @@ def cpu_gap_summary(
         "request_count": len(per_request),
         "total_visible_gap_ms_ge_100us": sum(all_gaps) / 1000.0,
         "largest_visible_gap_ms": max(all_gaps, default=0.0) / 1000.0,
+        "visible_gap_count_with_kernel_overlap": gaps_with_kernel_overlap,
+        "kernel_overlap_during_visible_gaps_ms": kernel_overlap_total / 1000.0,
         "mean_visible_gap_ms_per_request": (
             sum(item["visible_gap_ms_ge_100us"] for item in per_request)
             / len(per_request) if per_request else 0.0
