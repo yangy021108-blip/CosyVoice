@@ -185,7 +185,6 @@ def read_process_environment(pid: int) -> dict[str, str]:
 
 
 def find_api_server_pid() -> int | None:
-    expected = b"python\0-m\0api_server.main"
     for process_dir in Path("/proc").iterdir():
         if not process_dir.name.isdigit():
             continue
@@ -193,7 +192,11 @@ def find_api_server_pid() -> int | None:
             command = (process_dir / "cmdline").read_bytes()
         except (FileNotFoundError, PermissionError, ProcessLookupError):
             continue
-        if expected in command:
+        arguments = [item for item in command.split(b"\0") if item]
+        if any(
+            arguments[index:index + 2] == [b"-m", b"api_server.main"]
+            for index in range(len(arguments) - 1)
+        ):
             return int(process_dir.name)
     return None
 
