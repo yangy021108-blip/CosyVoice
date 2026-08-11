@@ -12,6 +12,10 @@ the language model.
   implemented. The first H100 pilot is written to a timestamped run directory.
 - Phase 2.5: independent LLM/Flow seed controls and raw/post-filter token
   capture are implemented in research-only offline runners.
+- Phase 2 scale: the H100 24 x 32 run completed. After Simplified/Traditional
+  ASR normalization it produced only one eligible GOOD/BAD pair, so the
+  predeclared uniform extension to 64 seeds is in progress. See
+  `03_phase2_scale_24x32.md`.
 - Phase 3 and later: not started. Hidden-state/attention instrumentation must
   not be enabled until Phase 2.5 controls pass and reproducible GOOD/BAD pairs
   exist.
@@ -206,14 +210,26 @@ python research/error_pattern/decode_fixed_tokens.py \
 ```
 
 Run the fixed Qwen3-ASR command over `decode/audio`, using the generated
-`decode/asr_expected_texts.txt`, then build labels and deterministic pairs:
+`decode/asr_expected_texts.txt`. Before scoring, add Simplified-Chinese fields
+with the `zhconv` already installed in the fixed ASR environment. Raw ASR text
+is preserved:
+
+```bash
+/SharedData/yangyu/qwen3_asr_518/bin/python \
+  research/error_pattern/normalize_asr_orthography.py \
+  --input research/error_pattern/data/phase2_scale_24x32/decode/asr_results.jsonl \
+  --output research/error_pattern/data/phase2_scale_24x32/decode/asr_results_zhcn.jsonl \
+  --summary research/error_pattern/data/phase2_scale_24x32/decode/asr_orthography_summary.json
+```
+
+Then build labels and deterministic pairs:
 
 ```bash
 python research/error_pattern/analyze_phase2_scale.py \
   --config research/error_pattern/configs/phase2_scale_24x32.json \
   --trajectories research/error_pattern/data/phase2_scale_24x32/token_sweep/token_trajectories.jsonl \
   --decode-results research/error_pattern/data/phase2_scale_24x32/decode/decode_results.jsonl \
-  --asr research/error_pattern/data/phase2_scale_24x32/decode/asr_results.jsonl \
+  --asr research/error_pattern/data/phase2_scale_24x32/decode/asr_results_zhcn.jsonl \
   --output research/error_pattern/data/phase2_scale_24x32/error_dataset.jsonl \
   --summary research/error_pattern/data/phase2_scale_24x32/evaluation_summary.json \
   --pairs research/error_pattern/data/phase2_scale_24x32/good_bad_pairs.jsonl
@@ -221,3 +237,9 @@ python research/error_pattern/analyze_phase2_scale.py \
 
 Phase 3 remains gated on at least 16 one-to-one GOOD/BAD pairs across at least
 four independent `sample_id` groups after pronunciation-aware/manual review.
+The 24 x 32 run did not pass this gate. Because it also produced fewer than 20
+high-confidence BAD observations, extend every text uniformly with
+`phase2_scale_24x32_extension.json` (seeds `20260933..20260964`). For combined
+24 x 64 analysis, pass both run files after each plural input option and use
+`phase2_scale_24x64.json`; `analyze_phase2_scale.py` accepts one or more paths
+for `--trajectories`, `--decode-results`, and `--asr`.

@@ -83,7 +83,14 @@ def main() -> None:
         raise ValueError(
             f"Expected {expected_sample_count} samples; found {len(selected_samples)}"
         )
-    llm_seeds = [int(seed) for seed in sweep["llm_seeds"]]
+    if "llm_seeds" in sweep:
+        llm_seeds = [int(seed) for seed in sweep["llm_seeds"]]
+    else:
+        seed_start = int(sweep["llm_seed_start"])
+        seed_end = int(sweep["llm_seed_end"])
+        if seed_end < seed_start:
+            raise ValueError("llm_seed_end must be greater than or equal to start")
+        llm_seeds = list(range(seed_start, seed_end + 1))
     if len(llm_seeds) != len(set(llm_seeds)):
         raise ValueError("LLM seeds must be unique")
     expected_seed_count = sweep.get("expected_seed_count")

@@ -39,13 +39,20 @@ REVIEW_TAGS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--trajectories", type=Path, required=True)
-    parser.add_argument("--decode-results", type=Path, required=True)
-    parser.add_argument("--asr", type=Path, required=True)
+    parser.add_argument("--trajectories", type=Path, nargs="+", required=True)
+    parser.add_argument("--decode-results", type=Path, nargs="+", required=True)
+    parser.add_argument("--asr", type=Path, nargs="+", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--summary", type=Path, required=True)
     parser.add_argument("--pairs", type=Path, required=True)
     return parser.parse_args()
+
+
+def read_many_jsonl(paths: list[Path]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for path in paths:
+        records.extend(read_jsonl(path.resolve()))
+    return records
 
 
 def trajectory_summaries(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -83,13 +90,24 @@ def build_metrics(
     asr: dict[str, Any] | None,
     thresholds: dict[str, float],
 ) -> dict[str, Any]:
-    reference_chars = normalize_characters(decoded["text"])
     asr_text = None if asr is None else str(asr.get("text", ""))
-    hypothesis_chars = normalize_characters(asr_text or "")
-    reference_words = tokenize_words(decoded["text"])
-    hypothesis_words = tokenize_words(asr_text or "")
-    reference_content = content_only_characters(decoded["text"])
-    hypothesis_content = content_only_characters(asr_text or "")
+    scoring_reference = str(decoded["text"])
+    scoring_hypothesis = asr_text or ""
+    orthography_normalizer = None
+    if asr is not None and asr.get("orthography_normalizer"):
+        scoring_reference = str(
+            asr.get("orthography_normalized_expected", scoring_reference)
+        )
+        scoring_hypothesis = str(
+            asr.get("orthography_normalized_text", scoring_hypothesis)
+        )
+        orthography_normalizer = str(asr["orthography_normalizer"])
+    reference_chars = normalize_characters(scoring_reference)
+    hypothesis_chars = normalize_characters(scoring_hypothesis)
+    reference_words = tokenize_words(scoring_reference)
+    hypothesis_words = tokenize_words(scoring_hypothesis)
+    reference_content = content_only_characters(scoring_reference)
+    hypothesis_content = content_only_characters(scoring_hypothesis)
     char_edits = edit_operations(reference_chars, hypothesis_chars)
     word_edits = edit_operations(reference_words, hypothesis_words)
     content_edits = edit_operations(reference_content, hypothesis_content)
@@ -99,6 +117,9 @@ def build_metrics(
         **trajectory,
         "asr_text": asr_text,
         "asr_raw_text": None if asr is None else asr.get("raw_text"),
+        "orthography_normalizer": orthography_normalizer,
+        "orthography_normalized_reference_text": scoring_reference,
+        "orthography_normalized_asr_text": scoring_hypothesis,
         "normalized_reference_text": "".join(reference_chars),
         "normalized_asr_text": "".join(hypothesis_chars),
         "reference_character_count": len(reference_chars),
@@ -178,9 +199,9 @@ def main() -> None:
     config = read_json(args.config.resolve())
     sweep = config["sweep"]
     thresholds = config["label_thresholds"]
-    trajectory_index = trajectory_summaries(read_jsonl(args.trajectories.resolve()))
-    decoded = read_jsonl(args.decode_results.resolve())
-    indexed_asr = asr_index(read_jsonl(args.asr.resolve()))
+    trajectory_index = trajectory_summaries(read_many_jsonl(args.trajectories))
+    decoded = read_many_jsonl(args.decode_results)
+    indexed_asr = asr_index(read_many_jsonl(args.asr))
 
     records: list[dict[str, Any]] = []
     for decoded_record in decoded:
@@ -239,6 +260,9 @@ def main() -> None:
         "expected_text_group_count": int(sweep["expected_sample_count"]),
         "collection_complete": len(records) == expected_total,
         "asr_result_count": sum(record["asr_text"] is not None for record in records),
+        "orthography_normalized_count": sum(
+            record["orthography_normalizer"] is not None for record in records
+        ),
         "content_label_counts": dict(label_counts),
         "quality_status_counts": dict(quality_counts),
         "unique_trajectory_count": len(
@@ -273,6 +297,7 @@ def main() -> None:
         "per_sample": per_sample,
         "limitations": [
             "ASR CER is an end-to-end proxy and all BAD rows require audio or pronunciation review.",
+            "Simplified/Traditional Chinese is folded only when the ASR JSONL contains explicit zhconv scoring fields; raw transcripts are preserved.",
             "Number, date, abbreviation, mixed-language, and pronunciation-sensitive rows cannot be auto-GOOD.",
             "Flow seed zero is fixed to the production CausalConditionalCFM noise buffer.",
             "Top-k logprob entropy is approximate, not exact vocabulary entropy.",
