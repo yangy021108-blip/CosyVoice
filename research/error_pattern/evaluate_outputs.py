@@ -157,7 +157,13 @@ def classify(metrics: dict[str, Any], thresholds: dict[str, float]) -> tuple[str
     if metrics["longest_repeated_asr_ngram"] >= 4:
         reasons.append("phrase_repetition")
     orthography_sensitive = bool(
-        {"numbers", "date", "abbreviation", "mixed_language"}
+        {
+            "numbers",
+            "date",
+            "abbreviation",
+            "mixed_language",
+            "pronunciation_sensitive",
+        }
         & set(metrics.get("tags", []))
     )
     # Plain ASR CER cannot validate the pronunciation of numbers, dates or

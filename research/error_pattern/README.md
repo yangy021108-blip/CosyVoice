@@ -177,3 +177,47 @@ use span density, relative-to-uniform grounding, and both raw `H` and
 
 The completed H100 control results and their limits are recorded in
 `02_phase2_5_controls.md`.
+
+## Phase 2 scale collection (24 texts x 32 seeds)
+
+The scale configuration freezes 24 text groups and 32 LLM seeds before
+generation, for exactly 768 production-noise trajectories. It does not add
+extra seeds after observing failures. Both long-running stages support
+`--resume`; resume is rejected if the config, text-set or voice hash changed.
+
+Capture speech-token trajectories:
+
+```bash
+python research/error_pattern/run_token_sweep.py \
+  --config research/error_pattern/configs/phase2_scale_24x32.json \
+  --output-dir research/error_pattern/data/phase2_scale_24x32/token_sweep \
+  --resume
+```
+
+Decode every trajectory with the production CFM noise buffer (`flow_seed=0`).
+Quality-rejected candidates are still saved:
+
+```bash
+python research/error_pattern/decode_fixed_tokens.py \
+  --config research/error_pattern/configs/phase2_scale_24x32.json \
+  --trajectories research/error_pattern/data/phase2_scale_24x32/token_sweep/token_trajectories.jsonl \
+  --output-dir research/error_pattern/data/phase2_scale_24x32/decode \
+  --resume
+```
+
+Run the fixed Qwen3-ASR command over `decode/audio`, using the generated
+`decode/asr_expected_texts.txt`, then build labels and deterministic pairs:
+
+```bash
+python research/error_pattern/analyze_phase2_scale.py \
+  --config research/error_pattern/configs/phase2_scale_24x32.json \
+  --trajectories research/error_pattern/data/phase2_scale_24x32/token_sweep/token_trajectories.jsonl \
+  --decode-results research/error_pattern/data/phase2_scale_24x32/decode/decode_results.jsonl \
+  --asr research/error_pattern/data/phase2_scale_24x32/decode/asr_results.jsonl \
+  --output research/error_pattern/data/phase2_scale_24x32/error_dataset.jsonl \
+  --summary research/error_pattern/data/phase2_scale_24x32/evaluation_summary.json \
+  --pairs research/error_pattern/data/phase2_scale_24x32/good_bad_pairs.jsonl
+```
+
+Phase 3 remains gated on at least 16 one-to-one GOOD/BAD pairs across at least
+four independent `sample_id` groups after pronunciation-aware/manual review.
