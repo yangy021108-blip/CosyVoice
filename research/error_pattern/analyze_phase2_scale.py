@@ -42,6 +42,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trajectories", type=Path, nargs="+", required=True)
     parser.add_argument("--decode-results", type=Path, nargs="+", required=True)
     parser.add_argument("--asr", type=Path, nargs="+", required=True)
+    parser.add_argument(
+        "--adjudication",
+        type=Path,
+        help="Optional human-adjudication JSONL keyed by decode_id.",
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--summary", type=Path, required=True)
     parser.add_argument("--pairs", type=Path, required=True)
@@ -155,7 +160,9 @@ def build_metrics(
     return record
 
 
-def deterministic_pairs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def deterministic_pairs(
+    records: list[dict[str, Any]], *, confirmed_only: bool = False
+) -> list[dict[str, Any]]:
     by_sample: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         by_sample[str(record["sample_id"])].append(record)
@@ -170,7 +177,12 @@ def deterministic_pairs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 record
                 for record in sample_records
                 if record["content_label"] == "BAD"
-                and not (REVIEW_TAGS & set(record.get("tags", [])))
+                and (
+                    record.get("adjudication_label")
+                    == "CONFIRMED_CONTENT_ERROR"
+                    if confirmed_only
+                    else not (REVIEW_TAGS & set(record.get("tags", [])))
+                )
             ],
             key=lambda record: (int(record["llm_seed"]), str(record["decode_id"])),
         )
@@ -179,6 +191,7 @@ def deterministic_pairs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 {
                     "pair_id": f"{sample_id}__pair_{pair_index:02d}",
                     "sample_id": sample_id,
+                    "challenge_category": good_record.get("challenge_category"),
                     "text": good_record["text"],
                     "good_llm_seed": good_record["llm_seed"],
                     "good_trajectory_sha256": good_record["trajectory_sha256"],
@@ -189,6 +202,9 @@ def deterministic_pairs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "bad_audio_path": bad_record["audio_path"],
                     "bad_cer": bad_record["cer"],
                     "bad_reasons": bad_record["content_label_reasons"],
+                    "bad_adjudication_label": bad_record.get(
+                        "adjudication_label", "NOT_REVIEWED"
+                    ),
                 }
             )
     return pairs
@@ -202,6 +218,13 @@ def main() -> None:
     trajectory_index = trajectory_summaries(read_many_jsonl(args.trajectories))
     decoded = read_many_jsonl(args.decode_results)
     indexed_asr = asr_index(read_many_jsonl(args.asr))
+    adjudication_index: dict[str, dict[str, Any]] = {}
+    if args.adjudication:
+        for adjudication in read_jsonl(args.adjudication.resolve()):
+            decode_id = str(adjudication["decode_id"])
+            if decode_id in adjudication_index:
+                raise ValueError(f"Duplicate adjudication decode_id: {decode_id}")
+            adjudication_index[decode_id] = adjudication
 
     records: list[dict[str, Any]] = []
     for decoded_record in decoded:
@@ -209,16 +232,25 @@ def main() -> None:
         trajectory = trajectory_index.get(generation_id)
         if trajectory is None:
             raise ValueError(f"Missing trajectory for {generation_id}")
-        records.append(
-            build_metrics(
-                decoded_record,
-                trajectory,
-                find_asr(decoded_record, indexed_asr),
-                thresholds,
-            )
+        record = build_metrics(
+            decoded_record,
+            trajectory,
+            find_asr(decoded_record, indexed_asr),
+            thresholds,
         )
+        adjudication = adjudication_index.get(str(record["decode_id"]))
+        record["adjudication_label"] = (
+            "NOT_REVIEWED"
+            if adjudication is None
+            else str(adjudication.get("adjudication_label", "UNRESOLVED"))
+        )
+        record["adjudication_notes"] = (
+            None if adjudication is None else adjudication.get("notes")
+        )
+        records.append(record)
 
     pairs = deterministic_pairs(records)
+    confirmed_pairs = deterministic_pairs(records, confirmed_only=True)
     by_sample: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         by_sample[str(record["sample_id"])].append(record)
@@ -241,6 +273,28 @@ def main() -> None:
             "cer_mean": sum(cers) / len(cers),
         }
 
+    by_category: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        category = record.get("challenge_category")
+        if category:
+            by_category[str(category)].append(record)
+    per_category = {
+        category: {
+            "observation_count": len(category_records),
+            "independent_text_group_count": len(
+                {record["sample_id"] for record in category_records}
+            ),
+            "content_label_counts": dict(
+                Counter(record["content_label"] for record in category_records)
+            ),
+            "confirmed_content_error_count": sum(
+                record["adjudication_label"] == "CONFIRMED_CONTENT_ERROR"
+                for record in category_records
+            ),
+        }
+        for category, category_records in sorted(by_category.items())
+    }
+
     expected_total = int(sweep["expected_sample_count"]) * int(
         sweep["expected_seed_count"]
     )
@@ -250,7 +304,24 @@ def main() -> None:
         reason for record in records for reason in record["stop_reasons"]
     )
     paired_groups = {pair["sample_id"] for pair in pairs}
+    paired_categories = {
+        str(pair["challenge_category"])
+        for pair in pairs
+        if pair.get("challenge_category")
+    }
+    confirmed_paired_groups = {pair["sample_id"] for pair in confirmed_pairs}
+    confirmed_paired_categories = {
+        str(pair["challenge_category"])
+        for pair in confirmed_pairs
+        if pair.get("challenge_category")
+    }
     gate = config["phase3_gate"]
+    minimum_bad_categories = int(gate.get("minimum_bad_categories", 0))
+    candidate_ready = bool(
+        len(pairs) >= int(gate["minimum_matched_pairs"])
+        and len(paired_groups) >= int(gate["minimum_bad_text_groups"])
+        and len(paired_categories) >= minimum_bad_categories
+    )
     summary = {
         "schema_version": 1,
         "experiment_id": config["experiment_id"],
@@ -258,6 +329,8 @@ def main() -> None:
         "expected_observation_count": expected_total,
         "independent_text_group_count": len(by_sample),
         "expected_text_group_count": int(sweep["expected_sample_count"]),
+        "independent_category_count": len(by_category),
+        "expected_category_count": sweep.get("expected_category_count"),
         "collection_complete": len(records) == expected_total,
         "asr_result_count": sum(record["asr_text"] is not None for record in records),
         "orthography_normalized_count": sum(
@@ -287,14 +360,25 @@ def main() -> None:
         "matched_good_bad_pair_count": len(pairs),
         "matched_good_bad_text_group_count": len(paired_groups),
         "matched_good_bad_text_groups": sorted(paired_groups),
+        "matched_good_bad_category_count": len(paired_categories),
+        "matched_good_bad_categories": sorted(paired_categories),
+        "confirmed_matched_pair_count": len(confirmed_pairs),
+        "confirmed_matched_text_group_count": len(confirmed_paired_groups),
+        "confirmed_matched_text_groups": sorted(confirmed_paired_groups),
+        "confirmed_matched_category_count": len(confirmed_paired_categories),
+        "confirmed_matched_categories": sorted(confirmed_paired_categories),
         "pairing_policy": "deterministic_one_to_one_within_sample_id",
         "required_split_group": "sample_id",
         "phase3_gate": gate,
+        "phase3_candidate_ready": candidate_ready,
         "phase3_ready": bool(
-            len(pairs) >= int(gate["minimum_matched_pairs"])
-            and len(paired_groups) >= int(gate["minimum_bad_text_groups"])
+            len(confirmed_pairs) >= int(gate["minimum_matched_pairs"])
+            and len(confirmed_paired_groups)
+            >= int(gate["minimum_bad_text_groups"])
+            and len(confirmed_paired_categories) >= minimum_bad_categories
         ),
         "per_sample": per_sample,
+        "per_category": per_category,
         "limitations": [
             "ASR CER is an end-to-end proxy and all BAD rows require audio or pronunciation review.",
             "Simplified/Traditional Chinese is folded only when the ASR JSONL contains explicit zhconv scoring fields; raw transcripts are preserved.",

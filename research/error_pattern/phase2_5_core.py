@@ -476,6 +476,7 @@ def generate_trajectory(
             f"{sample['sample_id']}__llm_{llm_seed}__repeat_{repeat_index}"
         ),
         "sample_id": sample["sample_id"],
+        "challenge_category": sample.get("challenge_category"),
         "length_group": sample.get("length_group"),
         "tags": sample.get("tags", []),
         "text": sample["text"],

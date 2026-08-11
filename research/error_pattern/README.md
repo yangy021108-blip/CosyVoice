@@ -16,9 +16,18 @@ the language model.
   contains 1,536 unique trajectories but still only one eligible GOOD/BAD
   pair, so Phase 3 remains blocked. See `03_phase2_scale_24x32.md` and
   `04_phase2_scale_24x64.md`.
+- Candidate adjudication: Qwen3-ASR and Whisper disagree on `short_order` and
+  agree on the `tongue_twister` opening collapse; both remain human-pending.
+  Challenge bank v2 is frozen at 8 categories x 4 texts x 16 seeds. See
+  `05_adjudication_and_challenge_v2.md`.
 - Phase 3 and later: not started. Hidden-state/attention instrumentation must
   not be enabled until Phase 2.5 controls pass and reproducible GOOD/BAD pairs
   exist.
+
+Human-confirmed Phase-3 readiness additionally requires at least three
+independent challenge categories. Automatic ASR candidates are reported
+separately and cannot satisfy the confirmed gate without an adjudication
+record keyed by `decode_id`.
 
 ## Phase 2 design
 

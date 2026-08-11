@@ -1,0 +1,46 @@
+{
+  "experiment_id": "cosyvoice3_h100_phase2_challenge_v2_32x16_20260811",
+  "repository_root": "/SharedData/yangyu/CosyVoice",
+  "model_dir": "/SharedData/yangyu/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B",
+  "voices_json": "api_server/voices.json",
+  "voice_id": "default",
+  "samples": "research/error_pattern/data/phase2_challenge_v2_samples.jsonl",
+  "load_vllm": true,
+  "fp16": true,
+  "text_frontend": true,
+  "speed": 1.0,
+  "asr_model": "/SharedData/models/Qwen/Qwen3-ASR-0___6B",
+  "sampling": {
+    "top_k": 25,
+    "logprobs": 5,
+    "min_token_text_ratio": 2.0,
+    "max_token_text_ratio": 20.0
+  },
+  "sweep": {
+    "expected_sample_count": 32,
+    "expected_category_count": 8,
+    "expected_samples_per_category": 4,
+    "expected_seed_count": 16,
+    "llm_seed_start": 20261001,
+    "llm_seed_end": 20261016,
+    "fixed_flow_seed": 0,
+    "repeat_sample_id": null,
+    "repeat_llm_seed": null,
+    "acoustic_control_flow_seeds": []
+  },
+  "label_thresholds": {
+    "good_cer_max": 0.05,
+    "borderline_cer_max": 0.20,
+    "early_transcript_ratio": 0.65,
+    "long_transcript_ratio": 1.60,
+    "min_duration_per_reference_char": 0.06,
+    "max_duration_per_reference_char": 0.80,
+    "max_silent_frame_ratio": 0.80,
+    "max_clipping_ratio": 0.01
+  },
+  "phase3_gate": {
+    "minimum_matched_pairs": 16,
+    "minimum_bad_text_groups": 4,
+    "minimum_bad_categories": 3
+  }
+}

@@ -9,6 +9,7 @@ import platform
 import subprocess
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -83,6 +84,30 @@ def main() -> None:
         raise ValueError(
             f"Expected {expected_sample_count} samples; found {len(selected_samples)}"
         )
+    expected_category_count = sweep.get("expected_category_count")
+    expected_samples_per_category = sweep.get("expected_samples_per_category")
+    if expected_category_count is not None or expected_samples_per_category is not None:
+        category_counts = Counter(
+            str(sample.get("challenge_category") or "")
+            for sample in selected_samples
+        )
+        if "" in category_counts:
+            raise ValueError("Every challenge sample requires challenge_category")
+        if expected_category_count is not None and len(category_counts) != int(
+            expected_category_count
+        ):
+            raise ValueError(
+                f"Expected {expected_category_count} categories; "
+                f"found {len(category_counts)}"
+            )
+        if expected_samples_per_category is not None and any(
+            count != int(expected_samples_per_category)
+            for count in category_counts.values()
+        ):
+            raise ValueError(
+                "Challenge categories do not contain the expected number of samples: "
+                f"{dict(sorted(category_counts.items()))}"
+            )
     if "llm_seeds" in sweep:
         llm_seeds = [int(seed) for seed in sweep["llm_seeds"]]
     else:

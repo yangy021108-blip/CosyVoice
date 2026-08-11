@@ -69,6 +69,7 @@ def decode_record(
         "experiment": experiment,
         "generation_id": trajectory["generation_id"],
         "sample_id": trajectory["sample_id"],
+        "challenge_category": trajectory.get("challenge_category"),
         "tags": trajectory.get("tags", []),
         "text": trajectory["text"],
         "llm_seed": trajectory["llm_seed"],
