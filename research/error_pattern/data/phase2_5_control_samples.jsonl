@@ -1,0 +1,3 @@
+{"sample_id":"entity_confusion_control","length_group":"medium","tags":["proper_noun","similar_entity"],"text":"张明从南京出发，王芳从南宁出发；李雷负责检查模型，赵琳负责检查服务。请完整区分每个人名和地点。"}
+{"sample_id":"repetition_control","length_group":"medium","tags":["repetition","similar_phrase","self_reinforcement"],"text":"先检查输入，再检查输出；先检查模型，再检查服务；先检查缓存，再检查显存；最后确认输入、输出、模型、服务、缓存和显存都已检查。"}
+{"sample_id":"long_grounding_control","length_group":"long","tags":["long","list","long_distance_dependency"],"text":"开始前请记住最后需要重复的是第二项和第十三项。第一项检查输入文本，第二项检查参考音频，第三项检查分词结果，第四项检查提示信息，第五项检查语音标记，第六项检查停止条件，第七项检查重复片段，第八项检查扩散解码，第九项检查声码器，第十项检查音频时长，第十一项检查静音比例，第十二项检查识别文本，第十三项检查内容准确率，第十四项检查运行延迟，第十五项检查实验记录。全部读完后，请再次重复第二项检查参考音频和第十三项检查内容准确率。"}

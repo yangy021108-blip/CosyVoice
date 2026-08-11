@@ -10,8 +10,11 @@ the language model.
 - Phase 1: architecture inspection is recorded in `00_architecture.md`.
 - Phase 2: the baseline generator, challenge-text set and ASR evaluator are
   implemented. The first H100 pilot is written to a timestamped run directory.
-- Phase 3 and later: not started. Token/logit/hidden-state instrumentation must
-  not be enabled until Phase 2 has produced reproducible GOOD/BAD pairs.
+- Phase 2.5: independent LLM/Flow seed controls and raw/post-filter token
+  capture are implemented in research-only offline runners.
+- Phase 3 and later: not started. Hidden-state/attention instrumentation must
+  not be enabled until Phase 2.5 controls pass and reproducible GOOD/BAD pairs
+  exist.
 
 ## Phase 2 design
 
@@ -23,10 +26,11 @@ text is sent with the same four explicit seeds. Expanding every text uniformly,
 rather than adding seeds only to a failed text, avoids adaptive cherry-picking.
 
 An explicit seed is mandatory. It prevents the API quality gate from silently
-retrying and replacing a rejected candidate. The current API seed affects both
-vLLM token sampling and Flow noise, so this phase is an error-screening
-experiment, not causal evidence about the LLM. `00_architecture.md` describes
-the controls required before causal interpretation.
+retrying and replacing a rejected candidate. Phase 2 is still an end-to-end
+screen because the public API does not expose the token trajectory. Phase 2.5
+showed that CosyVoice3's production `CausalConditionalCFM` reuses fixed
+seed-zero noise; non-zero Flow seeds in the offline runner deliberately replace
+that buffer as a research-only acoustic sensitivity test.
 
 ## Reproduce baseline generation
 
@@ -89,11 +93,13 @@ python research/error_pattern/evaluate_outputs.py \
   --pairs research/error_pattern/data/phase2_pilot/good_bad_pairs.jsonl
 ```
 
-`GOOD`, `BORDERLINE`, and `BAD` labels are derived from predeclared thresholds,
-while CER/WER and edit counts remain continuous fields. Service failures are
-kept and labeled `BAD`. A Phase-3 pair is emitted only when one text has at
-least one GOOD WAV and one BAD WAV. A quality-gate failure without audio is
-retained in the dataset but excluded from the pair file.
+`GOOD`, `BORDERLINE`, and `BAD` content labels are derived from predeclared
+thresholds, while CER/WER and edit counts remain continuous fields. Service
+failures use `generation_status=SERVICE_FAIL` and `content_label=UNKNOWN`; they
+are not content errors. A Phase-3 pair is emitted only when one text has at
+least one GOOD WAV and one BAD WAV. Pairing is deterministic and one-to-one,
+never the Cartesian product of all GOOD and BAD runs. Dataset splitting must
+group by `sample_id` to prevent the same text appearing in train and test.
 
 Raw CER remains the primary recorded metric. Numeric and Latin spellings are
 orthographically ambiguous (`2026` versus `二零二六`, for example). If raw CER
@@ -113,3 +119,61 @@ Do not compare runs unless model directory, repository commit, backend,
 sampling parameters, voice configuration, prompt audio and ASR model are all
 fixed. ASR disagreement is an end-to-end signal and can come from the LLM,
 Flow/HiFT, or ASR itself.
+
+## Phase 2.5 controls
+
+These commands are intentionally offline: the public API exposes only the LLM
+sampling seed and does not expose the stored CFM noise buffer. The offline
+runner must preserve the exact token trajectory and vary the two stages
+separately.
+Run each command from the repository root in the same vLLM environment used by
+the service. Each output directory must be new or empty.
+
+Capture four LLM trajectories per text, plus one exact repeat, without running
+Flow/HiFT:
+
+```bash
+python research/error_pattern/run_token_sweep.py \
+  --config research/error_pattern/configs/phase2_5_controls.json \
+  --output-dir research/error_pattern/data/phase2_5_controls/token_sweep
+```
+
+Decode all trajectories with one fixed Flow seed, then decode one fixed token
+trajectory with four Flow seeds. All WAVs are retained, including candidates
+that the API quality gate would reject:
+
+```bash
+python research/error_pattern/decode_fixed_tokens.py \
+  --config research/error_pattern/configs/phase2_5_controls.json \
+  --trajectories research/error_pattern/data/phase2_5_controls/token_sweep/token_trajectories.jsonl \
+  --output-dir research/error_pattern/data/phase2_5_controls/decode
+```
+
+Run fixed Qwen3-ASR over `decode/audio` using the command above with the Phase
+2.5 paths, then evaluate the three controls:
+
+```bash
+python research/error_pattern/analyze_phase2_5_controls.py \
+  --config research/error_pattern/configs/phase2_5_controls.json \
+  --decode-results research/error_pattern/data/phase2_5_controls/decode/decode_results.jsonl \
+  --asr research/error_pattern/data/phase2_5_controls/decode/asr_results.jsonl \
+  --output research/error_pattern/data/phase2_5_controls/control_samples.jsonl \
+  --summary research/error_pattern/data/phase2_5_controls/control_summary.json
+```
+
+The controls mean:
+
+- A: fixed `flow_seed`, varied `llm_seed` isolates token-trajectory changes.
+- B: fixed token trajectory, production noise at `flow_seed=0`, then
+  research-only counterfactual CFM noise at seeds 1–3 measures acoustic
+  sensitivity without changing production code.
+- C: identical LLM and Flow seeds repeated twice tests instrumentation
+  neutrality and determinism.
+
+Top-k logprob entropy fields are explicitly approximate. Exact vocabulary
+entropy and attention work remain deferred. Future attention comparisons must
+use span density, relative-to-uniform grounding, and both raw `H` and
+`H/log(number_of_available_keys)`.
+
+The completed H100 control results and their limits are recorded in
+`02_phase2_5_controls.md`.

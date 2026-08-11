@@ -16,9 +16,11 @@ that failed in the first pass.
 
 The model, voice, response format, speed, API quality gate and single-GPU
 backend were fixed. Every request passed an explicit seed, so the API did not
-replace a rejected candidate with an automatic retry. The API seed currently
-changes both vLLM sampling and stochastic Flow initialization, so this is an
-end-to-end screening result only.
+replace a rejected candidate with an automatic retry. Phase 2 did not capture
+the intermediate speech-token trajectory, so it remains an end-to-end
+screening result. Phase 2.5 later established that this CosyVoice3
+`CausalConditionalCFM` uses a fixed, seed-zero noise buffer in production; the
+request seed changes vLLM sampling, not that stored Flow noise.
 
 ## Runtime configuration
 
@@ -82,14 +84,18 @@ All 43 returned WAV files were transcribed. With the predeclared thresholds and
 the orthography safeguard described below, the current labels are:
 
 ```text
-GOOD:        28
-BORDERLINE:  14
-BAD:          6  (5 service failures + 1 returned WAV)
+GOOD:             28
+BORDERLINE:       14
+BAD content:       1  (returned WAV)
+UNKNOWN content:   5  (service failures without WAV)
 raw mean CER over returned WAVs: 0.08443
 matched GOOD/BAD WAV pairs: 0
 ```
 
-The one returned BAD WAV is `short_basic`, seed `20260812`, with raw CER 0.375.
+This table uses the corrected schema-v2 separation between
+`generation_status` and `content_label`; the initial schema-v1 report had
+incorrectly counted all five service failures as BAD content. The one returned
+BAD WAV is `short_basic`, seed `20260812`, with raw CER 0.375.
 The current four-seed pilot did not produce a same-text GOOD WAV for that text.
 `similar_entities` and `tongue_twister` did show same-text GOOD/BORDERLINE seed
 variation, which is useful for validating the pairing machinery but is not yet

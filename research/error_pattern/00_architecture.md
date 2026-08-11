@@ -294,6 +294,21 @@ explicit vLLM debug attention backend. Stage 1 should collect summaries only:
 - mass assigned to text, prompt-speech, recent-speech and old-speech spans;
 - per-layer/per-head concentration and sink ratio.
 
+Raw attention mass is not comparable across spans of different length. Any
+future attention report must also record the number of available keys and use
+the following length-normalized quantities:
+
+```text
+text_attention_density = text_attention_mass / text_token_count
+speech_attention_density = speech_attention_mass / speech_token_count
+text_grounding_ratio = text_attention_mass /
+                      (text_token_count / total_context_token_count)
+normalized_attention_entropy = H / log(number_of_available_keys)
+```
+
+Both `H` and normalized entropy must be reported. This avoids manufacturing a
+grounding or entropy trend from sequence length alone.
+
 Only matched GOOD/BAD samples should receive full `layer x head x query x key`
 maps. Q/K before and after RoPE can be captured at the Qwen2 attention module in
 the debug path; it is not available from the fused production kernel without a
@@ -338,8 +353,10 @@ Before collecting attention maps, run a paired generation sweep:
 1. Build a text set spanning short/long, numbers, punctuation, mixed Chinese and
    English, repeated phrases, and long lists.
 2. Generate each text with many explicit seeds using the same voice, model,
-   backend, and sampling parameters. Phase 2 treats this as screening only,
-   because the current request seed affects both LLM sampling and Flow noise.
+   backend, and sampling parameters. Phase 2 treats this as screening because
+   the public API does not expose the intermediate token trajectory. Phase 2.5
+   later confirmed that the request seed changes vLLM sampling while the
+   CosyVoice3 production Flow path reuses a fixed noise buffer.
 3. Save raw input, normalized chunk text, chunk boundaries, WAV, exact request
    JSON, effective seed, raw/filtered token counts, dropped tokens, stop reason,
    duration, and API timing headers.
@@ -363,18 +380,27 @@ it with a meaningful effect size or predictive AUC, the report must state
 
 ## 9. Required controls before causal interpretation
 
-### Separate LLM and acoustic randomness
+### Separate LLM and acoustic stages
 
-The current API seed is set before the complete request. It controls vLLM
-speech-token sampling and also affects Flow, whose conditional flow matcher
-starts from `torch.randn_like(mu)`. Same-text/different-seed samples therefore
-change two stages at once. Before attributing an ASR error to the LLM, add
-independent `llm_seed` and `flow_seed`, then run both controls:
+The earlier architecture hypothesis incorrectly generalized from
+`ConditionalCFM.forward()`, which samples with `torch.randn_like(mu)`. The
+deployed CosyVoice3 YAML uses `CausalConditionalCFM` instead. Its constructor
+calls `set_all_random_seed(0)`, creates one `rand_noise` tensor, and inference
+only slices that stored tensor. Therefore the production API request seed does
+not alter CFM noise in this model.
+
+Phase 2.5 nevertheless separates the stages explicitly. Seed zero reproduces
+the production CFM tensor; non-zero `flow_seed` values replace it only inside a
+research context manager and restore it after decoding. This counterfactual
+tests whether the same token trajectory is content-stable under acoustic noise
+changes:
 
 ```text
 fixed flow_seed + varied llm_seed
 fixed speech-token trajectory + varied flow_seed
 ```
+
+The completed H100 controls are reported in `02_phase2_5_controls.md`.
 
 ### Preserve all sequence views
 
@@ -422,6 +448,7 @@ BAD.
   silent-token filter for raw/filtered token, logprob and stop summaries,
   followed by exact-token teacher-forced replay for hidden states and attention.
 - Phase 2 ASR screening cannot by itself attribute an error to the LLM because
-  the current seed also controls stochastic Flow initialization.
+  it does not retain the intermediate speech-token trajectory. Phase 2.5 now
+  provides that boundary and verifies the production fixed-noise behavior.
 - No RoPE intervention should be attempted before the paired dataset shows a
   position- or RoPE-related precursor.

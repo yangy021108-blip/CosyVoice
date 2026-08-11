@@ -120,7 +120,7 @@ def asr_index(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for record in records:
         audio = Path(str(record["audio"]))
-        for key in (audio.name, audio.stem, str(audio)):
+        for key in dict.fromkeys((audio.name, audio.stem, str(audio))):
             if key in result:
                 raise ValueError(f"Duplicate ASR audio key: {key}")
             result[key] = record
@@ -136,10 +136,10 @@ def find_asr(record: dict[str, Any], indexed: dict[str, dict[str, Any]]) -> dict
 
 def classify(metrics: dict[str, Any], thresholds: dict[str, float]) -> tuple[str, list[str]]:
     reasons: list[str] = []
-    if metrics["generation_status"] != "success":
-        return "BAD", ["generation_failure"]
+    if metrics["generation_status"] != "SUCCESS":
+        return "UNKNOWN", ["service_failure_has_no_content_label"]
     if metrics["asr_text"] is None:
-        return "BAD", ["missing_asr_result"]
+        return "UNKNOWN", ["missing_asr_result"]
     if not metrics["normalized_asr_text"]:
         return "BAD", ["empty_asr_transcript"]
     if metrics["transcript_length_ratio"] < thresholds["early_transcript_ratio"]:
@@ -160,11 +160,10 @@ def classify(metrics: dict[str, Any], thresholds: dict[str, float]) -> tuple[str
         {"numbers", "date", "abbreviation", "mixed_language"}
         & set(metrics.get("tags", []))
     )
-    if (
-        orthography_sensitive
-        and metrics["cer"] > thresholds["good_cer_max"]
-        and metrics["content_only_cer"] <= thresholds["borderline_cer_max"]
-    ):
+    # Plain ASR CER cannot validate the pronunciation of numbers, dates or
+    # abbreviations. Such rows require a pronunciation-aware/manual review and
+    # must never be auto-promoted to GOOD, even when raw CER happens to be low.
+    if orthography_sensitive and not reasons:
         return "BORDERLINE", ["orthography_sensitive_terms_require_review"]
     if metrics["cer"] > thresholds["borderline_cer_max"]:
         reasons.append("high_cer")
@@ -198,7 +197,9 @@ def main() -> None:
         duration = float(generated.get("audio_duration_seconds") or 0.0)
         metrics: dict[str, Any] = {
             **generated,
-            "generation_status": generated.get("status"),
+            "generation_status": (
+                "SUCCESS" if generated.get("status") == "success" else "SERVICE_FAIL"
+            ),
             "asr_text": asr_text,
             "asr_raw_text": None if asr is None else asr.get("raw_text"),
             "normalized_reference_text": "".join(reference_chars),
@@ -227,8 +228,9 @@ def main() -> None:
             "output_input_token_ratio": None,
         }
         label, reasons = classify(metrics, thresholds)
-        metrics["label"] = label
-        metrics["label_reasons"] = reasons
+        metrics["content_label"] = label
+        metrics["content_label_reasons"] = reasons
+        metrics["error_source"] = "UNKNOWN"
         output_records.append(metrics)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -244,62 +246,72 @@ def main() -> None:
         good = [
             record
             for record in records
-            if record["label"] == "GOOD" and record.get("audio_path")
+            if record["content_label"] == "GOOD" and record.get("audio_path")
         ]
         bad = [
             record
             for record in records
-            if record["label"] == "BAD" and record.get("audio_path")
+            if record["content_label"] == "BAD" and record.get("audio_path")
         ]
-        for good_record in good:
-            for bad_record in bad:
-                pairs.append(
-                    {
-                        "sample_id": sample_id,
-                        "text": good_record["text"],
-                        "good_seed": good_record["seed"],
-                        "good_audio_path": good_record.get("audio_path"),
-                        "good_cer": good_record["cer"],
-                        "bad_seed": bad_record["seed"],
-                        "bad_audio_path": bad_record.get("audio_path"),
-                        "bad_cer": bad_record["cer"],
-                        "bad_reasons": bad_record["label_reasons"],
-                    }
-                )
+        # Deterministic one-to-one matching prevents GOOD x BAD Cartesian
+        # pseudo-replication. A sample can appear in at most min(GOOD, BAD)
+        # independent pairs.
+        good.sort(key=lambda record: (int(record["seed"]), str(record["audio_path"])))
+        bad.sort(key=lambda record: (int(record["seed"]), str(record["audio_path"])))
+        for pair_index, (good_record, bad_record) in enumerate(zip(good, bad)):
+            pairs.append(
+                {
+                    "pair_id": f"{sample_id}__pair_{pair_index:02d}",
+                    "sample_id": sample_id,
+                    "text": good_record["text"],
+                    "good_seed": good_record["seed"],
+                    "good_audio_path": good_record.get("audio_path"),
+                    "good_cer": good_record["cer"],
+                    "bad_seed": bad_record["seed"],
+                    "bad_audio_path": bad_record.get("audio_path"),
+                    "bad_cer": bad_record["cer"],
+                    "bad_reasons": bad_record["content_label_reasons"],
+                }
+            )
     args.pairs.parent.mkdir(parents=True, exist_ok=True)
     with args.pairs.open("w", encoding="utf-8") as handle:
         for pair in pairs:
             handle.write(json.dumps(pair, ensure_ascii=False, sort_keys=True) + "\n")
 
-    label_counts = Counter(record["label"] for record in output_records)
+    label_counts = Counter(record["content_label"] for record in output_records)
     valid_cer = [
         record["cer"]
         for record in output_records
-        if record["generation_status"] == "success" and record["asr_text"] is not None
+        if record["generation_status"] == "SUCCESS" and record["asr_text"] is not None
     ]
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "experiment_id": config.get("experiment_id"),
         "sample_count": len(output_records),
+        "independent_text_group_count": len(by_sample),
         "generation_success_count": sum(
-            record["generation_status"] == "success" for record in output_records
+            record["generation_status"] == "SUCCESS" for record in output_records
         ),
         "service_failure_count": sum(
-            record["generation_status"] != "success" for record in output_records
+            record["generation_status"] == "SERVICE_FAIL" for record in output_records
         ),
         "successful_audio_bad_count": sum(
-            record["generation_status"] == "success" and record["label"] == "BAD"
+            record["generation_status"] == "SUCCESS"
+            and record["content_label"] == "BAD"
             for record in output_records
         ),
         "asr_result_count": sum(record["asr_text"] is not None for record in output_records),
-        "label_counts": dict(label_counts),
+        "content_label_counts": dict(label_counts),
         "mean_cer_on_generated_audio": (
             sum(valid_cer) / len(valid_cer) if valid_cer else None
         ),
         "matched_good_bad_audio_pair_count": len(pairs),
+        "pairing_policy": "deterministic_one_to_one_within_sample_id",
+        "required_split_group": "sample_id",
         "thresholds": thresholds,
         "limitations": [
-            "The request seed controls both LLM sampling and Flow noise.",
+            "Phase-2 API rows do not contain the intermediate speech-token trajectory.",
+            "CosyVoice3 production CFM noise is fixed; Phase 2.5 verifies it separately.",
             "ASR mismatch is an end-to-end signal, not proof of an LLM error.",
             "Speech-token and EOS metrics are unavailable until Phase 3 instrumentation.",
             "Chinese WER tokenizes each Han character and groups Latin alphanumerics.",
