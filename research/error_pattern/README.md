@@ -12,10 +12,10 @@ the language model.
   implemented. The first H100 pilot is written to a timestamped run directory.
 - Phase 2.5: independent LLM/Flow seed controls and raw/post-filter token
   capture are implemented in research-only offline runners.
-- Phase 2 scale: the H100 24 x 32 run completed. After Simplified/Traditional
-  ASR normalization it produced only one eligible GOOD/BAD pair, so the
-  predeclared uniform extension to 64 seeds is in progress. See
-  `03_phase2_scale_24x32.md`.
+- Phase 2 scale: both H100 collections are complete. The combined 24 x 64 run
+  contains 1,536 unique trajectories but still only one eligible GOOD/BAD
+  pair, so Phase 3 remains blocked. See `03_phase2_scale_24x32.md` and
+  `04_phase2_scale_24x64.md`.
 - Phase 3 and later: not started. Hidden-state/attention instrumentation must
   not be enabled until Phase 2.5 controls pass and reproducible GOOD/BAD pairs
   exist.
@@ -237,9 +237,11 @@ python research/error_pattern/analyze_phase2_scale.py \
 
 Phase 3 remains gated on at least 16 one-to-one GOOD/BAD pairs across at least
 four independent `sample_id` groups after pronunciation-aware/manual review.
-The 24 x 32 run did not pass this gate. Because it also produced fewer than 20
-high-confidence BAD observations, extend every text uniformly with
-`phase2_scale_24x32_extension.json` (seeds `20260933..20260964`). For combined
-24 x 64 analysis, pass both run files after each plural input option and use
-`phase2_scale_24x64.json`; `analyze_phase2_scale.py` accepts one or more paths
-for `--trajectories`, `--decode-results`, and `--asr`.
+The 24 x 32 run did not pass this gate, so every text was uniformly extended
+with `phase2_scale_24x32_extension.json` (seeds `20260933..20260964`). For
+combined 24 x 64 analysis, pass both run files after each plural input option
+and use `phase2_scale_24x64.json`; `analyze_phase2_scale.py` accepts one or more
+paths for `--trajectories`, `--decode-results`, and `--asr`. The completed
+24 x 64 result also fails the gate. Do not add more seeds to these same texts;
+use the challenge-bank and human-review next steps in
+`04_phase2_scale_24x64.md`.
