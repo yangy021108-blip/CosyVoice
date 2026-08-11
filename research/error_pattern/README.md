@@ -18,8 +18,12 @@ the language model.
   `04_phase2_scale_24x64.md`.
 - Candidate adjudication: Qwen3-ASR and Whisper disagree on `short_order` and
   agree on the `tongue_twister` opening collapse; both remain human-pending.
-  Challenge bank v2 is frozen at 8 categories x 4 texts x 16 seeds. See
-  `05_adjudication_and_challenge_v2.md`.
+  See `05_adjudication_and_challenge_v2.md`.
+- Challenge bank v2: the frozen 32 texts x 32 seeds H100 collection is
+  complete. Its 1,024 unique trajectories contain 1,002 `GOOD`, 22
+  `BORDERLINE` and zero automatic `BAD` rows, so both Phase-3 readiness gates
+  remain false. The predeclared stopping rule now forbids adding more seeds to
+  this bank. See `06_phase2_challenge_v2_results.md`.
 - Phase 3 and later: not started. Hidden-state/attention instrumentation must
   not be enabled until Phase 2.5 controls pass and reproducible GOOD/BAD pairs
   exist.
@@ -254,3 +258,16 @@ paths for `--trajectories`, `--decode-results`, and `--asr`. The completed
 24 x 64 result also fails the gate. Do not add more seeds to these same texts;
 use the challenge-bank and human-review next steps in
 `04_phase2_scale_24x64.md`.
+
+## Phase 2 challenge-bank v2 result (32 texts x 32 seeds)
+
+The faithful-reading bank covers eight categories with four independent texts
+per category. The initial 16-seed run produced no automatic `BAD`, which
+triggered the predeclared uniform extension to another 16 seeds for every
+text. The combined 1,024-observation collection also produced no automatic or
+confirmed GOOD/BAD pair. Phase 3 therefore remains blocked, and no
+attention/hidden-state/RoPE capture is authorized.
+
+The complete H100 result, integrity checks, category breakdown, artifact paths
+and the boundary for a future separately reported stress distribution are in
+`06_phase2_challenge_v2_results.md`.
