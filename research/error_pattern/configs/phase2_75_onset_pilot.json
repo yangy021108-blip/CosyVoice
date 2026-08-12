@@ -1,0 +1,23 @@
+{
+  "experiment_id": "cosyvoice3_h100_phase2_75_onset_pilot_20260812",
+  "repository_root": "/workspace/CosyVoice",
+  "model_dir": "/workspace/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B",
+  "voices_json": "api_server/voices.json",
+  "voice_id": "default",
+  "load_vllm": true,
+  "fp16": true,
+  "text_frontend": true,
+  "speed": 1.0,
+  "selection": {
+    "suspected_degradation_candidates": 5,
+    "clear_control_candidates": 5,
+    "selection_random_seed": 20260812,
+    "selection_is_human_confirmation": false
+  },
+  "fixed_token_control": {
+    "flow_seeds": [0, 1, 2, 3],
+    "rerun_llm": false,
+    "expected_trajectory_count": 10,
+    "expected_decode_count": 40
+  }
+}

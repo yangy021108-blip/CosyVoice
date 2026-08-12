@@ -24,6 +24,10 @@ the language model.
   `BORDERLINE` and zero automatic `BAD` rows, so both Phase-3 readiness gates
   remain false. The predeclared stopping rule now forbids adding more seeds to
   this bank. See `06_phase2_challenge_v2_results.md`.
+- Phase 2.75: a separate local-articulation/onset-degradation workflow is
+  implemented. The 5 suspected + 5 clear-control, fixed-token x four-Flow-seed
+  pilot completed 40/40 re-decodes, but causal attribution is intentionally
+  pending blind human review. See `07_phase2_75_onset_articulation.md`.
 - Phase 3 and later: not started. Hidden-state/attention instrumentation must
   not be enabled until Phase 2.5 controls pass and reproducible GOOD/BAD pairs
   exist.

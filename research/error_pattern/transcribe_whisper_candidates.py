@@ -17,6 +17,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--language", default="zh")
+    parser.add_argument(
+        "--return-timestamps",
+        choices=("none", "segment", "word"),
+        default="none",
+        help=(
+            "Request Whisper timestamps. Chinese 'word' timestamps may still "
+            "cover multi-character phrases and are not forced alignment."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -55,9 +64,19 @@ def main() -> None:
         if waveform.ndim > 1:
             waveform = waveform.mean(axis=1)
         started = time.perf_counter()
+        timestamp_mode: bool | str = False
+        if args.return_timestamps == "segment":
+            timestamp_mode = True
+        elif args.return_timestamps == "word":
+            timestamp_mode = "word"
+        transcribe_kwargs: dict[str, Any] = {
+            "generate_kwargs": {"language": args.language, "task": "transcribe"}
+        }
+        if timestamp_mode:
+            transcribe_kwargs["return_timestamps"] = timestamp_mode
         result = transcriber(
             {"raw": waveform, "sampling_rate": sample_rate},
-            generate_kwargs={"language": args.language, "task": "transcribe"},
+            **transcribe_kwargs,
         )
         records.append(
             {
@@ -67,6 +86,18 @@ def main() -> None:
                 "language": args.language,
                 "sample_rate": int(sample_rate),
                 "text": str(result["text"]).strip(),
+                "segments": result.get("chunks"),
+                "alignment_method": (
+                    None
+                    if not timestamp_mode
+                    else f"whisper_{args.return_timestamps}_timestamp_approximation"
+                ),
+                "alignment_confidence": None,
+                "alignment_limit": (
+                    None
+                    if not timestamp_mode
+                    else "Not character-level forced alignment; confidence unavailable."
+                ),
                 "latency_seconds": time.perf_counter() - started,
             }
         )
