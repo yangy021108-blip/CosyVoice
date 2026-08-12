@@ -187,12 +187,14 @@ and a prefix mismatch are not interchangeable.
 
 ## Blind review and resume
 
-Download the pilot WAVs and manifest to a machine with audio output, keeping
-the WAV filenames unchanged. From a CosyVoice checkout run:
+Download the pilot WAVs and `pilot_blind_manifest.jsonl` to a machine with
+audio output, keeping the WAV filenames unchanged. The blind manifest contains
+no seed, content label, source group or revealing filename field. From a
+CosyVoice checkout run:
 
 ```bash
 python research/error_pattern/review_local_articulation.py \
-  --manifest pilot_review_manifest.jsonl \
+  --manifest pilot_blind_manifest.jsonl \
   --output pilot_human_reviews.jsonl \
   --reviewer REVIEWER_NAME \
   --audio-root /path/to/downloaded/audio

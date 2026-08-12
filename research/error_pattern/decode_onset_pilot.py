@@ -212,6 +212,17 @@ def main() -> None:
             }
         )
     write_jsonl(output_dir / "pilot_review_manifest.jsonl", review_manifest)
+    blind_manifest = [
+        {
+            "schema_version": 1,
+            "blind_id": record["blind_id"],
+            "audio_path": record["audio_path"],
+            "text": record["text"],
+            "duration": record["duration"],
+        }
+        for record in review_manifest
+    ]
+    write_jsonl(output_dir / "pilot_blind_manifest.jsonl", blind_manifest)
     with (output_dir / "asr_expected_texts.txt").open("w", encoding="utf-8") as handle:
         for record in sorted(records, key=lambda record: str(record["audio_path"])):
             handle.write(str(record["text"]) + "\n")
