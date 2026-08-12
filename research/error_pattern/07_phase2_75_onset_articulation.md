@@ -187,9 +187,10 @@ and a prefix mismatch are not interchangeable.
 
 ## Blind review and resume
 
-Download the pilot WAVs and `pilot_blind_manifest.jsonl` to a machine with
-audio output, keeping the WAV filenames unchanged. The blind manifest contains
-no seed, content label, source group or revealing filename field. From a
+Download `decode/blind_audio/` and `decode/pilot_blind_manifest.jsonl` to a
+machine with audio output, keeping the blinded WAV filenames unchanged. The
+blind copies are named only by random `blind_id`; the manifest contains no
+seed, content label, source group or revealing original filename. From a
 CosyVoice checkout run:
 
 ```bash

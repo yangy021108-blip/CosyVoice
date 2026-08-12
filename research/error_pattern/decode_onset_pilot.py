@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -212,16 +213,24 @@ def main() -> None:
             }
         )
     write_jsonl(output_dir / "pilot_review_manifest.jsonl", review_manifest)
-    blind_manifest = [
-        {
-            "schema_version": 1,
-            "blind_id": record["blind_id"],
-            "audio_path": record["audio_path"],
-            "text": record["text"],
-            "duration": record["duration"],
-        }
-        for record in review_manifest
-    ]
+    blind_audio_dir = output_dir / "blind_audio"
+    blind_audio_dir.mkdir(parents=True, exist_ok=True)
+    blind_manifest = []
+    for record in review_manifest:
+        blind_name = f"{record['blind_id']}.wav"
+        source_audio = audio_dir / Path(str(record["audio_path"])).name
+        blind_audio = blind_audio_dir / blind_name
+        if not blind_audio.exists():
+            shutil.copyfile(source_audio, blind_audio)
+        blind_manifest.append(
+            {
+                "schema_version": 1,
+                "blind_id": record["blind_id"],
+                "audio_path": str(published_root / "blind_audio" / blind_name),
+                "text": record["text"],
+                "duration": record["duration"],
+            }
+        )
     write_jsonl(output_dir / "pilot_blind_manifest.jsonl", blind_manifest)
     with (output_dir / "asr_expected_texts.txt").open("w", encoding="utf-8") as handle:
         for record in sorted(records, key=lambda record: str(record["audio_path"])):
