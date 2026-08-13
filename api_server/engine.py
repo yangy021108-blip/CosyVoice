@@ -45,6 +45,21 @@ class AudioResult:
     silent_frame_ratio: float | None = None
 
 
+@dataclass(frozen=True)
+class StreamingAudioResult:
+    content: bytes
+    content_format: str
+    media_type: str
+    sample_rate: int
+    duration_seconds: float
+    inference_seconds: float
+    time_to_first_audio_seconds: float
+    real_time_factor: float
+    chunk_count: int
+    seed: int
+    silent_frame_ratio: float
+
+
 class AudioQualityError(RuntimeError):
     """Raised when every generated candidate is clearly degenerate."""
 
@@ -78,7 +93,14 @@ class CosyVoiceEngine:
             sys.path.append(str(matcha_path))
 
         try:
+            LOGGER.info(
+                "loading CosyVoice backend model_dir=%s load_vllm=%s fp16=%s",
+                self.settings.model_dir,
+                self.settings.load_vllm,
+                self.settings.fp16,
+            )
             backend = self._create_backend()
+            LOGGER.info("CosyVoice backend loaded; validating registered voices")
             available_spks = set(backend.list_available_spks())
             for voice in self.voice_store.all():
                 if voice.mode == "sft" and voice.spk_id not in available_spks:
@@ -88,6 +110,7 @@ class CosyVoiceEngine:
                     )
             for voice in self.voice_store.all():
                 if voice.mode == "zero_shot":
+                    LOGGER.info("caching zero-shot voice id=%s", voice.voice_id)
                     backend.add_zero_shot_spk(
                         voice.prompt_text,
                         str(voice.prompt_audio),
@@ -96,6 +119,10 @@ class CosyVoiceEngine:
             self.backend = backend
             self.sample_rate = int(backend.sample_rate)
             self.load_error = None
+            LOGGER.info(
+                "CosyVoice engine ready sample_rate=%d",
+                self.sample_rate,
+            )
         except Exception as exc:
             self.load_error = f"{type(exc).__name__}: {exc}"
             raise
@@ -191,6 +218,91 @@ class CosyVoiceEngine:
             silent_frame_ratio=quality.silent_frame_ratio,
         )
 
+    def synthesize_streaming(
+        self,
+        request: SpeechRequest,
+        voice: VoiceSpec,
+        on_chunk: Callable[[bytes, int], bool | None],
+    ) -> StreamingAudioResult:
+        """Generate model-native PCM chunks and a final complete audio file.
+
+        ``on_chunk`` is called synchronously from the inference worker. It may
+        return ``False`` after a client disconnects; inference is still fully
+        drained so the upstream CosyVoice generator can clean up its session.
+        """
+
+        if not self.ready:
+            raise RuntimeError("CosyVoice model is not ready")
+        if request.model != self.settings.model_alias:
+            raise ValueError(f"unknown model: {request.model}")
+        if request.speed != 1.0:
+            raise ValueError("streaming synthesis currently requires speed=1.0")
+
+        seed = (
+            request.seed
+            if request.seed is not None
+            else self.settings.default_seed
+        )
+        started = time.perf_counter()
+        chunks: list[np.ndarray] = []
+        chunk_count = 0
+        first_audio_at: float | None = None
+        deliver_chunks = True
+
+        with self._inference_lock:
+            self._set_random_seed(seed)
+            for output in self._dispatch(request, voice, stream=True):
+                waveform = collect_waveform((output,))
+                chunks.append(waveform)
+                chunk_count += 1
+                if first_audio_at is None:
+                    first_audio_at = time.perf_counter()
+                if deliver_chunks:
+                    pcm_bytes = float_to_pcm16(waveform).tobytes()
+                    deliver_chunks = on_chunk(pcm_bytes, chunk_count) is not False
+
+        inference_seconds = time.perf_counter() - started
+        if not chunks:
+            raise ValueError("CosyVoice returned no streaming audio chunks")
+        waveform = np.concatenate(chunks)
+        quality = analyze_audio_quality(
+            waveform,
+            request.input,
+            sample_rate=int(self.sample_rate),
+            speed=request.speed,
+        )
+        if self.settings.quality_check_enabled and not quality.acceptable:
+            raise AudioQualityError(
+                "CosyVoice generated degenerate streaming audio; "
+                f"reason={quality.reason}"
+            )
+
+        pcm = float_to_pcm16(waveform)
+        duration_seconds = len(pcm) / int(self.sample_rate)
+        real_time_factor = (
+            inference_seconds / duration_seconds if duration_seconds else 0.0
+        )
+        if request.response_format == "wav":
+            content = encode_wav(pcm, int(self.sample_rate))
+            media_type = "audio/wav"
+        else:
+            content = pcm.tobytes()
+            media_type = "audio/pcm"
+
+        return StreamingAudioResult(
+            content=content,
+            content_format=request.response_format,
+            media_type=media_type,
+            sample_rate=int(self.sample_rate),
+            duration_seconds=duration_seconds,
+            inference_seconds=inference_seconds,
+            time_to_first_audio_seconds=first_audio_at - started,
+            real_time_factor=real_time_factor,
+            chunk_count=chunk_count,
+            seed=seed,
+            silent_frame_ratio=quality.silent_frame_ratio,
+        )
+
     def _generate_candidate(
         self, request: SpeechRequest, voice: VoiceSpec
     ) -> tuple[np.ndarray, int, int, AudioQuality]:
@@ -260,9 +372,15 @@ class CosyVoiceEngine:
             if callable(seed_setter):
                 seed_setter(seed)
 
-    def _dispatch(self, request: SpeechRequest, voice: VoiceSpec):
+    def _dispatch(
+        self,
+        request: SpeechRequest,
+        voice: VoiceSpec,
+        *,
+        stream: bool = False,
+    ):
         common = {
-            "stream": False,
+            "stream": stream,
             "speed": request.speed,
             "text_frontend": True,
         }

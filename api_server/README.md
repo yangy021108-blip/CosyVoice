@@ -6,7 +6,8 @@
 
 ## 1. 服务定位
 
-服务提供 OpenAI 风格的非流式文本转语音接口，但只实现本文列出的字段：
+服务提供 OpenAI 风格的非流式文本转语音接口，以及 CosyVoice 扩展的
+WebSocket 音频流接口，但只实现本文列出的字段：
 
 | 方法 | 路径 | 鉴权 | 作用 |
 | --- | --- | --- | --- |
@@ -15,6 +16,7 @@
 | `GET` | `/v1/models` | Bearer API Key | 查询模型别名、采样率和输出格式 |
 | `GET` | `/v1/audio/voices` | Bearer API Key | 查询服务端注册的音色 ID |
 | `POST` | `/v1/audio/speech` | Bearer API Key | 生成 WAV 或裸 PCM16 |
+| `WebSocket` | `/v1/audio/speech/stream` | Bearer API Key | 边生成边返回 PCM16，结束时返回完整音频 |
 
 当前支持：
 
@@ -23,8 +25,8 @@
 - 24 kHz 单声道 PCM16 WAV，以及无文件头的 PCM16 little-endian；
 - API Key、请求 ID、有限队列、超时、统一错误响应和音频质量门禁。
 
-当前不支持流式输出、MP3、Opus、SSML、任意采样率、pitch、时间戳和客户端
-上传参考音频。请求中的未知字段会返回 400。
+当前不支持文本输入流、MP3、Opus、SSML、任意采样率、pitch、时间戳和
+客户端上传参考音频。请求中的未知字段会返回 400。
 
 `COSYVOICE_LOAD_VLLM=true` 不是启动通用的 `vllm serve`。CosyVoice 只把
 LLM/speech-token 生成阶段交给进程内的 vLLM Engine，prompt embedding、
@@ -90,6 +92,41 @@ HTTP request
 6. `engine.py` 目前还有进程级推理锁；同一个模型实例保持串行最安全。
 7. 推理结束后先做质量检查，只有通过的候选才会编码成音频响应。
 
+### 3.1 WebSocket 音频流调用链
+
+`/v1/audio/speech/stream` 一次接收完整文本，不做文本增量输入。它把
+CosyVoice 的 `stream=True` 模型输出直接转换为 24 kHz、单声道、little-endian
+PCM16；每个模型 chunk 一生成就发给客户端。服务端同时累积完全相同的 PCM，
+推理结束后按 `response_format` 再发送完整 WAV 或 PCM。
+
+```text
+WebSocket connect + Authorization: Bearer API_KEY
+    ├─ server JSON: ready
+    ├─ client JSON: SpeechRequest
+    ├─ server JSON: start
+    ├─ server JSON: audio_chunk  ── 紧跟一个 binary PCM16 frame
+    ├─ server JSON: audio_chunk  ── 紧跟一个 binary PCM16 frame
+    ├─ ...
+    ├─ server JSON: complete_audio ── 紧跟完整 WAV/PCM binary frame
+    └─ server JSON: end          ── TTFA、latency、RTF、seed 等指标
+```
+
+JSON 元数据和二进制帧严格成对出现，客户端不能把 `complete_audio` 的完整文件
+再次排进实时播放队列，否则会把整段音频重复播放一次。
+`tools/test_cosyvoice_streaming_api.py` 会把实时 PCM 与完整文件分别保存，并
+验证两者逐样本一致。
+
+流式接口复用 HTTP 接口的模型、音色、长度、鉴权、接纳队列和推理锁。
+`COSYVOICE_STREAM_QUEUE_SIZE` 是服务器推理线程到 WebSocket 发送协程之间的
+有限队列，慢客户端会形成背压，不会无限占用内存。客户端断开后停止发送，
+但当前 CosyVoice/vLLM 生成器不能安全抢占已经进入设备的解码任务；后台任务
+结束前仍占用并发名额。
+
+流式传输已经把音频发送给客户端，不能在末尾质量检查失败后换 seed 重试。
+失败时发送 `error/audio_quality_failed`，不发送 `complete_audio`。需要严格重试
+语义时使用非流式 HTTP 接口。CosyVoice 的流式声码器目前只支持 `speed=1.0`；
+其他值会在入队前返回 `unsupported_parameter`。
+
 ## 4. PyTorch 与 vLLM backend 的区别
 
 两种 backend 使用同一套 HTTP 路由、音色、Flow/DiT、HiFT、音频编码和质量
@@ -136,6 +173,9 @@ HTTP request
 
 给 SFT 音色传 `instructions` 会在进入推理队列前返回
 `400 unsupported_parameter`。
+
+WebSocket 使用同一个请求体；其中 `response_format` 只控制末尾完整文件的
+格式，实时 chunk 始终是 PCM16。WebSocket 的 `speed` 当前必须为 `1.0`。
 
 ## 6. Seed 与质量门禁
 
@@ -274,6 +314,7 @@ SFT 示例：
 | `COSYVOICE_DEFAULT_SEED` | `2` | 未传 seed 时的首个 seed |
 | `COSYVOICE_QUALITY_CHECK_ENABLED` | `true` | 是否开启质量门禁 |
 | `COSYVOICE_QUALITY_MAX_RETRIES` | `2` | 首次候选之后的最大重试数 |
+| `COSYVOICE_STREAM_QUEUE_SIZE` | `4` | 流式 PCM chunk 的有界发送队列容量 |
 
 没有 API Key 时，服务只允许绑定回环地址。绑定 `0.0.0.0`、主机名或其他
 非回环地址必须配置 Key，除非主动设置
@@ -286,15 +327,16 @@ SFT 示例：
 | `__init__.py` | Python package 标识 |
 | `main.py` | `python -m api_server.main` 入口；启动单 worker Uvicorn |
 | `config.py` | 从环境变量构造并校验 `Settings` |
-| `app.py` | FastAPI 工厂、lifespan、鉴权、请求 ID、队列、路由和错误映射 |
+| `app.py` | FastAPI 工厂、lifespan、鉴权、请求 ID、HTTP/WebSocket 队列、路由和错误映射 |
 | `schemas.py` | `SpeechRequest` 严格请求模型 |
 | `errors.py` | 稳定的 `ServiceError` 类型 |
 | `voice_store.py` | 解析、校验和查询服务端音色注册表 |
 | `voices.json` | 当前实际音色配置 |
-| `engine.py` | 加载 CosyVoice、选择 backend、seed、推理分派、质量重试和编码 |
+| `engine.py` | 加载 CosyVoice、选择 backend、seed、非流式/流式推理、质量门禁和编码 |
 | `audio_codec.py` | waveform 收集、质量分析、PCM16 转换和 WAV 封装 |
 | `smoke_test.py` | 真实 HTTP 冒烟客户端和 WAV 结构/静音/clipping 校验 |
 | `../tools/test_cosyvoice_api.py` | 固定端口的 PyTorch/vLLM 真实 API 验收客户端；保存端点结果、响应头、音频及汇总 |
+| `../tools/test_cosyvoice_streaming_api.py` | WebSocket 流式客户端；可实时播放并校验分块 PCM 与完整音频一致 |
 | `requirements-runtime.txt` | PyTorch backend 的 API/CosyVoice 依赖 |
 | `requirements-vllm.txt` | vLLM backend 的额外版本约束；不得装入 PyTorch 环境 |
 | `requirements-test.txt` | 不加载真实模型的单元测试依赖 |
@@ -309,8 +351,8 @@ SFT 示例：
 | 文件 | 覆盖范围 |
 | --- | --- |
 | `tests/test_config.py` | 环境变量默认值、范围和安全校验 |
-| `tests/test_api.py` | 路由、鉴权、错误、队列、超时和响应头 |
-| `tests/test_engine.py` | backend 分派、seed、质量重试和音色验证 |
+| `tests/test_api.py` | HTTP/WebSocket 路由、鉴权、错误、队列、超时和响应 |
+| `tests/test_engine.py` | backend 分派、seed、流式分块、质量重试和音色验证 |
 | `tests/test_audio_codec.py` | 音频转换和质量门禁 |
 | `tests/test_smoke.py` | 冒烟客户端的 WAV 验证 |
 
@@ -408,3 +450,30 @@ zero-shot 音色。因此当前执行 SFT 命令会在发起语音请求前明�
 保存为 `.error.json`，本次单用例结果为失败，不会把错误 JSON 写成 WAV。
 默认终端只显示类似 curl 的传输摘要；需要排查全部端点、响应头和指标时追加
 `--verbose`，完整结果始终保存在 `results.json`。
+
+### WebSocket 流式验收
+
+先启动服务，再从仓库根目录运行：
+
+```bash
+python3 tools/test_cosyvoice_streaming_api.py \
+  --url ws://127.0.0.1:8021/v1/audio/speech/stream \
+  --api-key-file /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_sdaa_vllm_api.env \
+  --input "欢迎使用 CosyVoice 流式语音合成服务。" \
+  --voice default \
+  --response-format wav \
+  --instructions "请用自然、清晰、平稳的普通话朗读。" \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_streaming_zero_shot_wav
+```
+
+客户端每收到一个 PCM chunk 就打印当前累计音频时长。成功后目录中有：
+
+- `stream_live.pcm`：按到达顺序拼接的实时裸 PCM16；
+- `stream_complete.wav`：服务端在末尾发送的完整 WAV；
+- `stream_events.json`：事件顺序与 TTFA、latency、RTF 等指标。
+
+脚本会验证实时 PCM 与完整 WAV 的 PCM 数据逐字节一致。在有声卡与 `ffplay`
+的客户端机器上追加 `--play`，即可边接收边播放；服务器通常没有音频设备，
+不应在服务器 shell 使用 `--play`。PyTorch backend 只需把 URL 端口改成
+`8020`。

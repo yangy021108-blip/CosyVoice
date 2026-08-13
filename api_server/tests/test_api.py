@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from api_server.app import _await_inference_task, create_app
 from api_server.audio_codec import encode_wav, float_to_pcm16
 from api_server.config import Settings
-from api_server.engine import AudioResult
+from api_server.engine import AudioResult, StreamingAudioResult
 from api_server.voice_store import VoiceSpec, VoiceStore
 
 
@@ -77,6 +77,38 @@ class FakeEngine:
             seed=2,
             quality_retry_count=1,
             silent_frame_ratio=0.1,
+        )
+
+    def synthesize_streaming(
+        self, payload, voice, on_chunk
+    ) -> StreamingAudioResult:
+        del voice
+        self.calls += 1
+        chunk_arrays = [
+            np.full(1200, 0.1, dtype=np.float32),
+            np.full(1200, -0.1, dtype=np.float32),
+        ]
+        for index, chunk in enumerate(chunk_arrays, start=1):
+            on_chunk(float_to_pcm16(chunk).tobytes(), index)
+        pcm = float_to_pcm16(np.concatenate(chunk_arrays))
+        if payload.response_format == "wav":
+            content = encode_wav(pcm, 24000)
+            media_type = "audio/wav"
+        else:
+            content = pcm.tobytes()
+            media_type = "audio/pcm"
+        return StreamingAudioResult(
+            content=content,
+            content_format=payload.response_format,
+            media_type=media_type,
+            sample_rate=24000,
+            duration_seconds=0.1,
+            inference_seconds=0.02,
+            time_to_first_audio_seconds=0.005,
+            real_time_factor=0.2,
+            chunk_count=2,
+            seed=2,
+            silent_frame_ratio=0.0,
         )
 
 
@@ -217,6 +249,50 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.headers["content-type"].startswith("audio/pcm"))
         self.assertEqual(len(response.content), 4800)
+
+    def test_websocket_streams_pcm_chunks_and_complete_wav(self) -> None:
+        with self.make_client(api_key="secret") as client:
+            with client.websocket_connect(
+                "/v1/audio/speech/stream",
+                headers={"Authorization": "Bearer secret"},
+            ) as websocket:
+                ready = websocket.receive_json()
+                self.assertEqual(ready["event"], "ready")
+                websocket.send_json(self.request_body(seed=2))
+                self.assertEqual(websocket.receive_json()["event"], "start")
+
+                live_pcm = bytearray()
+                for expected_index in (1, 2):
+                    metadata = websocket.receive_json()
+                    self.assertEqual(metadata["event"], "audio_chunk")
+                    self.assertEqual(metadata["index"], expected_index)
+                    chunk = websocket.receive_bytes()
+                    self.assertEqual(metadata["bytes"], len(chunk))
+                    live_pcm.extend(chunk)
+
+                complete = websocket.receive_json()
+                self.assertEqual(complete["event"], "complete_audio")
+                self.assertEqual(complete["format"], "wav")
+                complete_wav = websocket.receive_bytes()
+                self.assertEqual(complete["bytes"], len(complete_wav))
+                end = websocket.receive_json()
+                self.assertEqual(end["event"], "end")
+                self.assertEqual(end["chunks"], 2)
+
+        with wave.open(io.BytesIO(complete_wav), "rb") as wav_file:
+            self.assertEqual(wav_file.readframes(wav_file.getnframes()), live_pcm)
+
+    def test_websocket_rejects_streaming_speed_change(self) -> None:
+        with self.make_client() as client:
+            with client.websocket_connect(
+                "/v1/audio/speech/stream"
+            ) as websocket:
+                websocket.receive_json()
+                websocket.send_json(self.request_body(speed=1.5))
+                error = websocket.receive_json()
+        self.assertEqual(error["event"], "error")
+        self.assertEqual(error["error"]["code"], "unsupported_parameter")
+        self.assertEqual(error["error"]["param"], "speed")
 
     def test_authentication(self) -> None:
         with self.make_client(api_key="secret") as client:

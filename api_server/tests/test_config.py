@@ -16,6 +16,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.default_seed, 2)
         self.assertTrue(settings.quality_check_enabled)
         self.assertEqual(settings.quality_max_retries, 2)
+        self.assertEqual(settings.stream_queue_size, 4)
 
     def test_non_loopback_binding_without_auth_is_rejected(self) -> None:
         with patch.dict(
@@ -73,6 +74,23 @@ class SettingsTest(unittest.TestCase):
             clear=True,
         ):
             with self.assertRaisesRegex(ValueError, "COSYVOICE_DEFAULT_SEED"):
+                Settings.from_env()
+
+    def test_stream_queue_size_is_read_and_validated(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"COSYVOICE_STREAM_QUEUE_SIZE": "8"},
+            clear=True,
+        ):
+            self.assertEqual(Settings.from_env().stream_queue_size, 8)
+        with patch.dict(
+            os.environ,
+            {"COSYVOICE_STREAM_QUEUE_SIZE": "0"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "COSYVOICE_STREAM_QUEUE_SIZE"
+            ):
                 Settings.from_env()
 
 

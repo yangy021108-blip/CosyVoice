@@ -25,6 +25,12 @@
 `Dockerfile.sdaa` 已使用 `/bin/bash`，以后基于它新建的容器不再显示
 `sleep infinity`。
 
+启动命令中的 `SDAA_VISIBLE_DEVICES=16/18` 是宿主调度器使用的全局逻辑
+ID，不是容器内 `teco-smi` 显示的 0–7 局部索引；本机分别映射到容器视图
+中的卡 0/2。不要因为 `teco-smi` 只显示 8 张卡就把它自行改写为 0–7。
+容器镜像中的默认环境变量可能是旧的资源分配，运行现有服务时以本节经过
+验证的 `docker exec -e` 覆盖值为准。
+
 ## 2. 一次性准备
 
 在宿主机执行：
@@ -71,6 +77,7 @@ export COSYVOICE_LOAD_VLLM=false
 export COSYVOICE_FP16=false
 export COSYVOICE_MAX_CONCURRENCY=1
 export COSYVOICE_MAX_QUEUE_SIZE=16
+export COSYVOICE_STREAM_QUEUE_SIZE=4
 export COSYVOICE_REQUEST_TIMEOUT_SECONDS=900
 export COSYVOICE_DEFAULT_SEED=0
 export COSYVOICE_QUALITY_CHECK_ENABLED=true
@@ -107,6 +114,8 @@ python3 tools/test_cosyvoice_api.py \
   --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/pytorch_zero_shot_no_instruction_wav
 ```
 
+PyTorch 流式调用命令见第 5 节。
+
 ## 4. vLLM backend
 
 ### 终端 A：启动服务
@@ -140,6 +149,7 @@ export COSYVOICE_LOAD_VLLM=true
 export COSYVOICE_FP16=true
 export COSYVOICE_MAX_CONCURRENCY=1
 export COSYVOICE_MAX_QUEUE_SIZE=16
+export COSYVOICE_STREAM_QUEUE_SIZE=4
 export COSYVOICE_REQUEST_TIMEOUT_SECONDS=900
 export COSYVOICE_DEFAULT_SEED=0
 export COSYVOICE_QUALITY_CHECK_ENABLED=true
@@ -247,12 +257,120 @@ zero-shot，因此当前 SFT 命令会在推理前报告没有注册 SFT 音色�
 `/v1/audio/voices` 返回的音色 mode，因此不会把 SFT、zero-shot 和
 instruction 推理路径混在一次测试里。
 
+vLLM 流式调用命令见第 5 节。
+
 2026-07-29 实测中，zero-shot 无 instructions WAV、zero-shot 有
 instructions WAV 和 zero-shot PCM 三个目录均为 `ok: true`。SFT 目录为
 `ok: false`、`speech_requests: []`，原因是当前模型没有注册 SFT 音色；
 该目录没有任何音频文件。
 
-## 5. 输出文件与判断标准
+## 5. 开启并调用流式输出
+
+### 5.1 服务端怎么开启
+
+流式输出没有单独的启动程序，也不需要设置 `STREAM=true` 一类开关。
+按照第 3 节或第 4 节执行 `exec python -m api_server.main` 后，同一进程会同时
+开放以下接口：
+
+| 模式 | 接口 |
+| --- | --- |
+| 非流式 HTTP | `POST /v1/audio/speech` |
+| 流式 WebSocket | `ws://127.0.0.1:8020/v1/audio/speech/stream`（PyTorch） |
+| 流式 WebSocket | `ws://127.0.0.1:8021/v1/audio/speech/stream`（vLLM） |
+
+`COSYVOICE_STREAM_QUEUE_SIZE=4` 不是流式开关，而是推理线程与 WebSocket
+发送协程之间的有界 chunk 队列容量。默认值 4 已适合当前单并发服务；客户端
+接收较慢时队列会产生背压，避免 PCM chunk 无限占用内存。
+
+终端 A 出现 `Application startup complete` 后，在终端 B 检查服务：
+
+```bash
+curl --fail-with-body http://127.0.0.1:8021/health
+curl --fail-with-body http://127.0.0.1:8021/ready
+```
+
+PyTorch backend 把上述端口改成 `8020`。`curl` 只能检查 HTTP 健康接口，
+不能完整测试 WebSocket 音频流；实际流式请求使用下一节的 Python 客户端。
+
+### 5.2 vLLM zero-shot 流式请求
+
+在宿主机终端 B 执行：
+
+```bash
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_streaming_api.py \
+  --url ws://127.0.0.1:8021/v1/audio/speech/stream \
+  --api-key-file /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_sdaa_vllm_api.env \
+  --input "欢迎使用 CosyVoice SDAA vLLM 流式语音服务。" \
+  --voice default \
+  --response-format wav \
+  --instructions "请用自然、清晰、平稳的普通话朗读。" \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_streaming_zero_shot_wav
+```
+
+不需要风格指令时删除 `--instructions` 这一行。当前注册的 `default` 是
+zero-shot 音色；当前模型没有可用的 SFT `spk_id`，因此暂时不能把 `voice`
+改成 SFT 音色。以后在 `api_server/voices.json` 注册真实 SFT 音色并重启服务
+后，同一个流式接口可以使用该音色，但 SFT 请求不能带 `--instructions`。
+
+### 5.3 PyTorch zero-shot 流式请求
+
+PyTorch 服务启动在 8020 端口时执行：
+
+```bash
+cd /mnt/nvme/application/yangyu/CosyVoice
+python3 tools/test_cosyvoice_streaming_api.py \
+  --url ws://127.0.0.1:8020/v1/audio/speech/stream \
+  --api-key-file /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_sdaa_vllm_api.env \
+  --input "欢迎使用 CosyVoice PyTorch 流式语音服务。" \
+  --voice default \
+  --response-format wav \
+  --seed 0 \
+  --output-dir /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/pytorch_streaming_zero_shot_wav
+```
+
+### 5.4 接收、播放和完整音频
+
+服务端按以下顺序发送数据：
+
+```text
+ready
+start
+audio_chunk JSON -> 一帧二进制 PCM16
+audio_chunk JSON -> 一帧二进制 PCM16
+...
+complete_audio JSON -> 一帧完整 WAV 或 PCM
+end
+```
+
+实时 chunk 始终是 24 kHz、单声道、little-endian PCM16；
+`--response-format wav` 或 `pcm` 只控制最后完整音频的格式。当前 CosyVoice
+流式声码器只支持 `speed=1.0`，客户端脚本已固定使用该值。
+
+脚本会自动创建 `--output-dir`，每收到一个 chunk 就打印累计音频时长，并在
+结束后生成：
+
+| 文件 | 含义 |
+| --- | --- |
+| `stream_live.pcm` | 按接收顺序拼接的实时 PCM chunk |
+| `stream_complete.wav` | `response_format=wav` 时的完整音频 |
+| `stream_complete.pcm` | `response_format=pcm` 时的完整音频 |
+| `stream_events.json` | chunk 顺序、TTFA、总延迟、RTF 和 seed |
+
+客户端还会验证 `stream_live.pcm` 与完整音频中的 PCM 数据逐字节一致。不要把
+`complete_audio` 再放入实时播放队列，否则会把整段语音重复播放一次。
+
+在装有 `ffplay` 和音频设备的客户端上，可以在测试命令末尾追加：
+
+```bash
+  --play
+```
+
+此时收到每个 PCM chunk 后会立即送入播放器。SDAA 服务器通常没有声卡，
+服务器端验收建议不加 `--play`，直接下载 `stream_complete.wav` 人工试听。
+
+## 6. 输出文件与判断标准
 
 每次调用显式指定独立的 `--output-dir`，且该目录必须位于
 `cosyvoice_api_outputs` 下。典型文件如下：
@@ -290,7 +408,7 @@ find /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_ze
   -printf '%f %s bytes\n'
 ```
 
-## 6. 停止服务
+## 7. 停止服务
 
 终端 A 按 `Ctrl-C` 停止前台服务。需要停止常驻容器时在宿主机执行：
 
@@ -299,7 +417,7 @@ find /mnt/nvme/application/yangyu/CosyVoice/cosyvoice_api_outputs/manual/vllm_ze
 /opt/kube/bin/docker stop -t 15 yy-cosyvoice-sdaa-vllm
 ```
 
-## 7. SDAA 与 ONNX Runtime
+## 8. SDAA 与 ONNX Runtime
 
 观察卡状态：
 
@@ -312,7 +430,7 @@ CosyVoice 主模型、LLM、flow 和 vocoder 通过 PyTorch SDAA 或 SDAA vLLM
 CUDA 的 `onnxruntime-gpu` 不能驱动 SDAA，也不代表主推理退回 CPU。当前
 SDAA 环境应保留 CPU 版 `onnxruntime`，不要安装 CUDA provider。
 
-## 8. 性能测试
+## 9. 性能测试
 
 固定测试脚本和性能文档位于：
 

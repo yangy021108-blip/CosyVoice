@@ -67,12 +67,15 @@ class Settings:
     default_seed: int = 2
     quality_check_enabled: bool = True
     quality_max_retries: int = 2
+    stream_queue_size: int = 4
 
     def __post_init__(self) -> None:
         if not 0 <= self.default_seed <= 2**32 - 1:
             raise ValueError("default_seed must be between 0 and 4294967295")
         if self.quality_max_retries < 0:
             raise ValueError("quality_max_retries must be >= 0")
+        if self.stream_queue_size < 1:
+            raise ValueError("stream_queue_size must be >= 1")
         if (
             self.api_key is None
             and not _is_loopback_host(self.host)
@@ -130,5 +133,8 @@ class Settings:
             ),
             quality_max_retries=_env_int(
                 "COSYVOICE_QUALITY_MAX_RETRIES", 2, 0
+            ),
+            stream_queue_size=_env_int(
+                "COSYVOICE_STREAM_QUEUE_SIZE", 4, 1
             ),
         )

@@ -158,6 +158,58 @@ class EngineTest(unittest.TestCase):
         )
         self.assertEqual(calls["inference_sft"]["spk_id"], "speaker-a")
 
+    def test_streaming_uses_model_chunks_and_builds_complete_audio(self) -> None:
+        store = make_store()
+        backend = RecordingBackend(
+            waveforms=[
+                np.full((1, 1200), 0.25, dtype=np.float32),
+                np.full((1, 1200), -0.25, dtype=np.float32),
+            ]
+        )
+
+        def two_chunk_result(name, kwargs):
+            backend.calls.append((name, kwargs))
+            return [
+                {"tts_speech": backend.waveforms.pop(0)},
+                {"tts_speech": backend.waveforms.pop(0)},
+            ]
+
+        backend._result = two_chunk_result
+        engine = CosyVoiceEngine(
+            make_settings(), store, backend_factory=lambda: backend
+        )
+        engine.load()
+        streamed: list[bytes] = []
+
+        result = engine.synthesize_streaming(
+            request(seed=7),
+            store.get("default"),
+            lambda content, index: streamed.append(content),
+        )
+
+        calls = dict(backend.calls)
+        self.assertTrue(calls["inference_zero_shot"]["stream"])
+        self.assertEqual(result.chunk_count, 2)
+        self.assertEqual(result.seed, 7)
+        self.assertEqual(result.content_format, "wav")
+        self.assertEqual(len(b"".join(streamed)), 4800)
+
+    def test_streaming_rejects_unsupported_speed(self) -> None:
+        store = make_store()
+        engine = CosyVoiceEngine(
+            make_settings(),
+            store,
+            backend_factory=RecordingBackend,
+        )
+        engine.load()
+
+        with self.assertRaisesRegex(ValueError, "requires speed=1.0"):
+            engine.synthesize_streaming(
+                request(speed=1.5),
+                store.get("default"),
+                lambda content, index: True,
+            )
+
     def test_degenerate_audio_retries_with_next_seed(self) -> None:
         store = make_store()
         backend = RecordingBackend(
