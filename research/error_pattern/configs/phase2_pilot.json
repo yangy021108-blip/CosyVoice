@@ -1,0 +1,20 @@
+{
+  "experiment_id": "cosyvoice3_h100_phase2_pilot_20260811",
+  "model": "cosyvoice3-0.5b",
+  "voice": "default",
+  "response_format": "wav",
+  "speed": 1.0,
+  "request_timeout_seconds": 900,
+  "expected_sample_rate": 24000,
+  "asr_model": "/SharedData/models/Qwen/Qwen3-ASR-0___6B",
+  "label_thresholds": {
+    "good_cer_max": 0.05,
+    "borderline_cer_max": 0.20,
+    "early_transcript_ratio": 0.65,
+    "long_transcript_ratio": 1.60,
+    "min_duration_per_reference_char": 0.06,
+    "max_duration_per_reference_char": 0.80,
+    "max_silent_frame_ratio": 0.80,
+    "max_clipping_ratio": 0.01
+  }
+}

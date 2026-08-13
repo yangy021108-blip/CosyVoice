@@ -1,0 +1,24 @@
+{"sample_id":"short_basic","length_group":"short","tags":["short"],"text":"你好，这是短句测试。"}
+{"sample_id":"short_negation","length_group":"short","tags":["short","negation"],"text":"请保留新版本，不要恢复旧版本。"}
+{"sample_id":"short_order","length_group":"short","tags":["short","order"],"text":"先读蓝色，再读绿色，最后读红色。"}
+{"sample_id":"medium_natural","length_group":"medium","tags":["medium"],"text":"今天的天气很好，我们正在验证语音合成服务的内容准确率、稳定性和自然度。"}
+{"sample_id":"numbers_and_date","length_group":"medium","tags":["numbers","date","pronunciation_sensitive"],"text":"会议定于2026年8月11日14点30分开始，订单编号是730218，预算为12.5万元。"}
+{"sample_id":"mixed_abbreviations","length_group":"medium","tags":["abbreviation","mixed_language","proper_noun","pronunciation_sensitive"],"text":"请依次读出 API、GPU、H100 和 CosyVoice3-0.5B，并说明 RTF 小于1代表快于实时。"}
+{"sample_id":"similar_entities","length_group":"medium","tags":["proper_noun","similar_phrase","pronunciation_sensitive"],"text":"张明去了南京，张铭去了南宁；李雷负责模型，李磊负责服务，请不要混淆人名和地点。"}
+{"sample_id":"role_binding","length_group":"medium","tags":["proper_noun","entity_binding"],"text":"张明负责检查模型，王芳负责检查服务，李雷负责记录延迟，周强负责记录吞吐，请保持人物和任务一一对应。"}
+{"sample_id":"repeated_structure","length_group":"medium","tags":["repetition","similar_phrase"],"text":"先检查输入，再检查输出；先记录延迟，再记录吞吐；先保证正确，再考虑加速。"}
+{"sample_id":"parallel_contrast","length_group":"medium","tags":["similar_phrase","negation"],"text":"缓存命中时读取已有结果，缓存未命中时重新计算；显存充足时扩大批量，显存不足时缩小批量。"}
+{"sample_id":"tongue_twister","length_group":"medium","tags":["tongue_twister","similar_phrase","pronunciation_sensitive"],"text":"四是四，十是十，十四是十四，四十是四十，不要把十四说成四十，也不要把四十说成十四。"}
+{"sample_id":"punctuation_dense","length_group":"medium","tags":["punctuation","list"],"text":"注意：第一，不能漏字；第二，不能重复；第三，不能提前结束——即使句中包含括号（例如这一段）、引号“保持准确”和分号；也要完整读出。"}
+{"sample_id":"nested_punctuation","length_group":"medium","tags":["punctuation","nested_structure"],"text":"负责人说：“检查顺序是‘输入、模型、输出’，其中模型部分还包括（权重、配置和缓存）。”请完整读出所有层级。"}
+{"sample_id":"prompt_overlap","length_group":"medium","tags":["prompt_overlap","similar_phrase"],"text":"希望你以后能够做得比我还好，也希望这次能够把每个字都说得清楚、自然、完整。"}
+{"sample_id":"spatial_sequence","length_group":"medium","tags":["order","similar_phrase"],"text":"从东门进入后先向北走，再向西转，经过图书馆后向南走，最后从西门离开，不要交换方向和地点。"}
+{"sample_id":"rare_locations","length_group":"medium","tags":["proper_noun","pronunciation_sensitive"],"text":"列车依次经过呼和浩特、乌鲁木齐、克拉玛依和阿拉善左旗，请保持地名顺序并完整读出。"}
+{"sample_id":"correction_chain","length_group":"medium","tags":["self_correction","negation","similar_phrase"],"text":"这里要记录的是推理延迟，不是训练延迟；要记录的是音频时长，不是文本长度；要保留失败样本，不是删除失败样本。"}
+{"sample_id":"english_code_switch","length_group":"medium","tags":["mixed_language","abbreviation","pronunciation_sensitive"],"text":"The request enters the API gateway，然后进入 model engine，最后由 audio codec 输出 WAV 文件，请保持中英文顺序。"}
+{"sample_id":"units_measurements","length_group":"medium","tags":["numbers","abbreviation","pronunciation_sensitive"],"text":"采样率是24千赫兹，音频为单声道16位，生成6.4秒语音耗时2.58秒，实时率约为0.40。"}
+{"sample_id":"long_dependency","length_group":"long","tags":["long","long_distance_dependency"],"text":"在开始测试之前，请先记住唯一需要在最后回答的颜色是蓝色。接下来我们依次检查文本归一化、语音标记生成、声学特征恢复和波形合成，这些步骤中间会出现许多无关描述，但不要被它们干扰；当所有内容都读完以后，请明确说出刚才要求记住的颜色是蓝色。"}
+{"sample_id":"long_list","length_group":"long","tags":["long","list","numbers","pronunciation_sensitive"],"text":"本次检查包含十个项目：一是输入文本，二是参考音频，三是文本分词，四是语音标记，五是停止条件，六是扩散解码，七是声码器，八是音频时长，九是识别结果，十是错误分类。请按照原顺序完整读出，不要遗漏，也不要交换。"}
+{"sample_id":"long_two_anchors","length_group":"long","tags":["long","long_distance_dependency","entity_binding"],"text":"开始前请记住，甲组最终汇报蓝色，乙组最终汇报黄色。中间依次检查输入文本、参考音频、模型权重、缓存状态、显存占用、生成延迟和识别结果。全部检查结束后，请先说甲组最终汇报蓝色，再说乙组最终汇报黄色。"}
+{"sample_id":"very_long_mixed","length_group":"very_long","tags":["very_long","mixed_language","numbers","date","repetition","frontend_split","pronunciation_sensitive"],"text":"这是一个用于观察长文本生成稳定性的综合样例。第一部分记录环境：设备是 NVIDIA H100，模型是 CosyVoice3-0.5B，测试日期是2026年8月11日。第二部分记录规则：相同文本使用相同配置，不因结果好看而删除失败样本，不把语音识别错误直接当成语言模型错误。第三部分重复关键约束：先保证正确，再考虑速度；先保证正确，再考虑速度；先保证正确，再考虑速度。第四部分列出检查项：是否漏词、是否插词、是否重复、是否提前结束、是否异常延长、是否把英文缩写读错。第五部分给出结论格式：如果没有稳定证据，就明确写出没有发现强模式；如果发现相关性，还需要通过双向干预验证因果关系。最后请再次完整读出设备名称 NVIDIA H100 和模型名称 CosyVoice3-0.5B。"}
+{"sample_id":"very_long_grounding","length_group":"very_long","tags":["very_long","long_distance_dependency","list","frontend_split"],"text":"请在阅读下面全部内容时记住两个最终要求：第一个要求是最后重复“模型保持不变”，第二个要求是最后重复“失败样本必须保留”。实验开始后，先核对代码提交和模型目录，再核对参考音频及其转写，然后记录文本前端是否启用、语音标记数量、停止原因和静音过滤位置。接下来检查声学解码的噪声配置、声码器输出、音频采样率、声道数和位宽，并使用固定语音识别模型计算字符错误率。任何服务失败都应单独记录，不能直接标记成内容错误；任何日期、数字、缩写和中英文混合文本都需要发音感知复核。全部内容读完后，请依次重复：模型保持不变；失败样本必须保留。"}

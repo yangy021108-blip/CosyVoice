@@ -1,0 +1,32 @@
+{
+  "experiment_id": "cosyvoice3_h100_phase2_5_controls_v2_20260811",
+  "repository_root": "/SharedData/yangyu/CosyVoice",
+  "model_dir": "/SharedData/yangyu/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B",
+  "voices_json": "api_server/voices.json",
+  "voice_id": "default",
+  "samples": "research/error_pattern/data/phase2_5_control_samples.jsonl",
+  "load_vllm": true,
+  "fp16": true,
+  "text_frontend": true,
+  "speed": 1.0,
+  "sampling": {
+    "top_k": 25,
+    "logprobs": 5,
+    "min_token_text_ratio": 2.0,
+    "max_token_text_ratio": 20.0
+  },
+  "controls": {
+    "sample_ids": [
+      "entity_confusion_control",
+      "repetition_control",
+      "long_grounding_control"
+    ],
+    "llm_seeds": [20260821, 20260822, 20260823, 20260824],
+    "fixed_flow_seed": 0,
+    "repeat_sample_id": "entity_confusion_control",
+    "repeat_llm_seed": 20260821,
+    "acoustic_control_sample_id": "entity_confusion_control",
+    "acoustic_control_llm_seed": 20260821,
+    "acoustic_control_flow_seeds": [0, 1, 2, 3]
+  }
+}
