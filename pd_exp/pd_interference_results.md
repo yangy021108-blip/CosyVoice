@@ -1,71 +1,62 @@
-# CosyVoice3 PD 干扰实验结果
+# CosyVoice3 vLLM 0.25.1 PD interference / P99 benchmark
 
-## 实验目的
+Status: research-only benchmark. Production API/defaults and CUDA Graph dispatch were not changed.
 
-验证 Unified vLLM 中长 prompt Prefill 是否会干扰同卡正在进行的 Decode，
-并尝试用 1P1D 将 Prefill 放到独立 H100 后复测同一指标。主要观察 Request A
-逐 speech-token TPOT 的 P95、P99 和最大值，同时执行逐 token correctness gate。
+## Scope and protocol
 
-## 固定条件
+- Official comparison: Unified FULL_DECODE_ONLY versus 1P1D PD FULL_DECODE_ONLY.
+- vLLM 0.25.1, BF16, max_num_seqs=2, canonical 131x896 prompt embeddings, normal top-p sampling.
+- Three repetitions for each B prompt length: 512, 1024, 2048, 4096, 8192 (15 cases per mode).
+- Both PD workers build the engine, load weights, compile/warm CUDA Graphs, and complete the NIXL handshake in warm/control requests before measured A.
+- P waits on a barrier; D writes it when A reaches output token 40. P then starts B on its already-ready engine. Unified injects B into the same engine/GPU at A token 40.
+- TPOT phase boundaries use monotonic timestamps. during is from barrier/injection until B completion; after is N/A when A has already completed (this occurs for every PD case).
+- B has one auxiliary output token (max_tokens=1); only prefill wall time is measured. No Flow/HiFT/frontend is included.
 
-- 模型：CosyVoice3-0.5B vLLM backend；
-- Request A：canonical `[131, 896]` BF16 `prompt_embeds`，seed 20260726；
-- A 的 Unified reference：162 raw speech tokens；
-- Request B：4,192-token 长 prompt；
-- 注入时机：A 产生第 40 个 speech token 后；
-- Unified 模式下 A、B 共用一个 H100 和一个 vLLM engine；
-- PD 目标模式下 A Decode 使用 GPU2，B Prefill 使用独立 GPU；
-- 未改变 sampling、Flow、HiFT 或 frontend。
+## A Decode TPOT (ms)
 
-## Unified 结果
+Values are the mean of three per-run summaries. Each cell is P50 / P95 / P99 / MAX.
 
-结果文件：
+| B prompt | Unified control | Unified before | Unified during | Unified after | PD control | PD before | PD during | PD after |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 512  | 2.26 | 2.19 / 2.21 / 2.23 / 2.25 | 5.68 / 12.94 / 13.85 / 14.07 | 2.24 / 2.28 / 2.34 / 2.45 | 2.42 | 2.37 / 2.43 / 2.50 / 2.54 | 2.46 / 2.64 / 3.31 / 4.33 | N/A |
+| 1024 | 2.20 | 2.15 / 2.19 / 2.25 / 2.28 | 1.83 / 12.62 / 20.21 / 22.18 | 2.22 / 2.25 / 2.29 / 2.45 | 2.45 | 2.40 / 2.46 / 2.79 / 2.99 | 2.55 / 2.72 / 3.33 / 5.62 | N/A |
+| 2048 | 2.22 | 2.18 / 2.21 / 2.26 / 2.27 | 2.72 / 11.36 / 12.13 / 12.33 | 2.24 / 2.27 / 2.32 / 2.66 | 2.44 | 2.40 / 2.44 / 2.48 / 2.50 | 2.49 / 2.68 / 3.46 / 4.18 | N/A |
+| 4096 | 2.19 | 2.15 / 2.20 / 2.22 / 2.23 | 2.57 / 13.19 / 14.86 / 15.28 | 2.20 / 2.24 / 2.32 / 2.44 | 2.43 | 2.39 / 2.43 / 2.45 / 2.45 | 2.46 / 2.58 / 2.68 / 2.72 | N/A |
+| 8192 | 2.19 | 2.15 / 2.20 / 2.23 / 2.24 | 2.26 / 18.92 / 24.54 / 25.94 | 2.21 / 2.25 / 2.30 / 2.35 | 2.43 | 2.39 / 2.45 / 2.49 / 2.50 | 2.49 / 2.70 / 2.97 / 4.52 | N/A |
 
-```text
-pd_exp/results/unified_interference.json
-```
+## Cost and benefit
 
-| 项目 | 无 B 的控制 A | 注入 B 的 A |
-|---|---:|---:|
-| 注入前 TPOT P95 | 约 2.30 ms | — |
-| 注入前 TPOT P99 | 约 2.38 ms | — |
-| 注入后 TPOT P95 | — | 2.06 ms |
-| 注入后 TPOT P99 | — | 18.71 ms |
-| 注入后最大 TPOT | — | 36.34 ms |
-| raw token 数 | 162 | 164 |
-| 与 reference 首次差异 | 无 | index 100 |
+| B prompt | PD control overhead vs Unified | Unified during P99 -> PD during P99 | P99 reduction | Unified observed MAX -> PD observed MAX | MAX reduction | PD B Prefill wall | PD KV transfer |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 512  | 7.1%  | 13.85 -> 3.31 | 76.1% | 19.79 -> 5.53 | 72.0% | 1183.23 ms | 5.08 ms |
+| 1024 | 11.8% | 20.21 -> 3.33 | 83.5% | 44.92 -> 7.97 | 82.3% | 1166.70 ms | 6.27 ms |
+| 2048 | 9.6%  | 12.13 -> 3.46 | 71.5% | 18.03 -> 5.79 | 67.9% | 1166.72 ms | 5.49 ms |
+| 4096 | 11.1% | 14.86 -> 2.68 | 82.0% | 21.41 -> 2.90 | 86.4% | 1269.56 ms | 3.06 ms |
+| 8192 | 11.2% | 24.54 -> 2.97 | 87.9% | 29.65 -> 6.20 | 78.9% | 1158.53 ms | 6.77 ms |
 
-结论：长 Prefill 与 Decode 共卡时，A 出现明显 TPOT tail spike。由于当前
-sampling trajectory 对 batch/scheduling 顺序敏感，A 还从 162 token 改变为
-164 token。因此该实验能证明 Unified 存在干扰，但不能把注入请求的输出当成
-正确性 baseline。
+PD control TPOT is about 2.42-2.45 ms versus Unified about 2.19-2.26 ms, an extra about 7.1-11.8%. The extra GPU cost is one resident Prefill worker plus about 3-7 ms measured NIXL READ completion per A request.
 
-## PD 对照状态
+## B Prefill and GPU observations
 
-先后尝试让 B 在 GPU0（计划中的 Prefill GPU）和 GPU4 上以独立 vLLM
-EngineCore 启动。两次都停在 EngineCore 初始化、权重加载前，显存约
-691 MiB、GPU utilization 为 0%，没有进入 B Prefill，也没有形成可用的 A
-TPOT 对照。相关实验 PID 已清理，GPU0/GPU2/GPU4 均恢复到实验前状态。
+PD B Prefill wall time is approximately 1.13-1.21 s across these lengths. This wall time includes vLLM scheduler/CPU waiting, not only GPU kernels. NVML polling at 20 ms on P GPU0 recorded low busy percentages for short bursts; for 8192 the three runs were approximately 3.7-3.9% mean and 21-23% peak. This is a useful observation, not a substitute for a GPU-kernel trace.
 
-因此当前不能声称：
+## Output checks
 
-- PD 已降低 Request A 的 TPOT P95/P99；
-- PD 已消除 stochastic trajectory 变化；
-- 独立 Prefill GPU 在这个注入方式下已通过稳定性验证。
+- All 30 measured A requests completed with non-empty integer token sequences and no worker exception.
+- Unified raw token counts across the matrix were 157, 159, 161, 162, and 168; PD produced 159 tokens in all 15 measured cases. This is the previously known graph/sampling behavior, not a new interference failure.
+- This stripped case deliberately stops before Flow/HiFT, so audio duration, CER/WER and waveform quality are not available here; they remain required for normal product/API validation.
+- Token equality is not used as the Graph correctness gate; prior deterministic argmax and KV bitwise checks remain the correctness evidence.
 
-## 判断
+## Conclusion
 
-Unified 干扰现象成立，但 PD 干扰对照未完成。结合正确 PD eager 的 TPOT
-约 6.1 ms、Unified graph 的 TPOT 约 2.1 ms，以及 PD graph 的 token 漂移，
-本轮数据不足以支持将 PD 接入生产。后续应先解决 remote KV 与
-`FULL_DECODE_ONLY` CUDA Graph 的 correctness，再在进程启动前预加载一个
-长期存活的 B Prefill worker，避免在 A decode 中途创建新的 vLLM EngineCore。
+PD clearly isolates A Decode from a long B Prefill on this H100: during-window P99 fell by about 71.5-87.9% and the largest observed during-window MAX fell by about 67.9-86.4%, while no-interference TPOT overhead was about 7-12%. The benefit is largely independent of B length because the Unified scheduler suffers tail stalls whereas the separate Decode GPU does not.
 
-推荐的下一次实验方法：
+**Recommendation:** PD is worthwhile for tail-sensitive multi-tenant serving when a dedicated Prefill GPU is available. Do not integrate it as the production default yet: first repeat with the full Flow/HiFT path, normal audio-quality checks, a longer A workload so an after phase is observable, and a larger sample (at least 30-100 cases per length) for stable P99/P99.9 estimates.
 
-1. A、B worker 都在测量前完成模型加载和 warm-up；
-2. B worker 阻塞在 IPC barrier，而不是收到信号后才启动 engine；
-3. A 第 40 token 只释放 barrier，触发已就绪的 B 执行长 Prefill；
-4. 分别记录 A 的 pre/post TPOT P50/P95/P99/max；
-5. 先要求控制与注入两条 A trajectory 都通过逐 token gate；若 sampling 本身
-   对调度顺序敏感，则补充 greedy/control-only 实验，但不能替代产品采样配置。
+## Reproduction artifacts
+
+- Unified JSON: `pd_exp/results/interference_unified_full.json`
+- PD JSON: `pd_exp/results/interference_pd_final/pd_interference_summary.json`
+- PD per-case logs/traces: `pd_exp/results/interference_pd_final/pd/len_<L>_rep_<N>/`
+- Experimental drivers: `pd_exp/unified_interference_benchmark.py`, `pd_exp/pd_interference_benchmark_ready.py`, `pd_exp/pd_interference_prefill_ready.py`, `pd_exp/pd_interference_decode_ready.py`
+- NIXL transfer timing is opt-in via `--instrument-nixl` and `COSY_PD_TRACE_FILE`.
