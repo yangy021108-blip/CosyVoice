@@ -80,7 +80,12 @@ def main() -> int:
                 request_id = (
                     f"cosy-unified-{iteration:04d}-{request_in_batch:04d}"
                 )
-                request_embeds, request_metadata = payloads[request_in_batch]
+                payload_index = (
+                    iteration * args.concurrency + request_in_batch
+                    if len(payloads) >= args.iterations * args.concurrency
+                    else request_in_batch
+                )
+                request_embeds, request_metadata = payloads[payload_index]
                 specs.append({
                     "request_id": request_id,
                     "prompt_embeds": request_embeds,

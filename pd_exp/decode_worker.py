@@ -108,9 +108,13 @@ def main() -> int:
                 prefill = read_json(prefill_output)
                 if prefill.get("status") != "ok":
                     raise RuntimeError(f"Prefill worker failed: {prefill}")
+                payload_index = (
+                    linear_index if payload_paths is not None
+                    and len(payload_paths) >= total_requests else batch_index
+                )
                 request_payload = (
                     args.input if payload_paths is None
-                    else payload_paths[batch_index]
+                    else payload_paths[payload_index]
                 )
                 request_embeds, request_metadata = load_prompt_payload(
                     request_payload
