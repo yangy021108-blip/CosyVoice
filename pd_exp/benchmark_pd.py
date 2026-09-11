@@ -19,7 +19,9 @@ if str(ROOT) not in sys.path:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", default="0")
-    parser.add_argument("--prompt-payload", type=Path, required=True)
+    parser.add_argument("--prompt-payload", type=Path, default=None)
+    parser.add_argument("--prompt-payload-list", type=Path, default=None,
+                        help="JSON list of payloads, one per batch slot.")
     parser.add_argument("--baseline-tokens", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--concurrency", type=int, default=1)
@@ -53,7 +55,16 @@ def main() -> int:
     )
     from pd_exp.compare_tokens import compare
 
-    prompt_embeds, metadata = load_prompt_payload(args.prompt_payload)
+    if (args.prompt_payload is None) == (args.prompt_payload_list is None):
+        raise ValueError("provide exactly one of --prompt-payload/--prompt-payload-list")
+    payload_paths = [args.prompt_payload]
+    if args.prompt_payload_list is not None:
+        payload_paths = [Path(item) for item in json.loads(
+            args.prompt_payload_list.read_text(encoding="utf-8")
+        )]
+        if len(payload_paths) < args.concurrency:
+            raise ValueError("prompt-payload-list must contain at least concurrency payloads")
+    payloads = [load_prompt_payload(path) for path in payload_paths]
     baseline = read_json(args.baseline_tokens)
     engine = build_engine(
         args.model_dir,
@@ -69,10 +80,11 @@ def main() -> int:
                 request_id = (
                     f"cosy-unified-{iteration:04d}-{request_in_batch:04d}"
                 )
+                request_embeds, request_metadata = payloads[request_in_batch]
                 specs.append({
                     "request_id": request_id,
-                    "prompt_embeds": prompt_embeds,
-                    "sampling_params": make_sampling_params(metadata),
+                    "prompt_embeds": request_embeds,
+                    "sampling_params": make_sampling_params(request_metadata),
                 })
             results = run_engine_requests(
                 engine,
@@ -113,7 +125,14 @@ def main() -> int:
         "gpu": str(args.gpu),
         "concurrency": args.concurrency,
         "iterations": args.iterations,
-        "canonical_prompt_payload": str(args.prompt_payload.resolve()),
+        "canonical_prompt_payload": (
+            None if args.prompt_payload is None
+            else str(args.prompt_payload.resolve())
+        ),
+        "prompt_payload_list": (
+            None if args.prompt_payload_list is None
+            else str(args.prompt_payload_list.resolve())
+        ),
         "all_tokens_equal": all(
             item["token_correctness"]["token_by_token_equal"]
             for item in records

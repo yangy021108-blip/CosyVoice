@@ -38,6 +38,10 @@ def parse_args() -> argparse.Namespace:
         help="Canonical prompt_payload.pt saved by baseline.py.",
     )
     parser.add_argument(
+        "--prompt-payload-list", type=Path, default=None,
+        help="JSON list of payloads, one per batch slot, for research mixes.",
+    )
+    parser.add_argument(
         "--skip-acoustic", action="store_true",
         help="Profile only P/D using the already validated fixed token path.",
     )
@@ -157,6 +161,16 @@ def main() -> int:
         sys.path.append(str(args.matcha_path))
 
     import torch
+    if os.environ.get("COSY_PD_SOUND_FILE_FALLBACK") == "1":
+        import numpy as np
+        import soundfile as sf
+        import torchaudio
+        def _soundfile_load(path, frame_offset=0, num_frames=-1, normalize=True, channels_first=True, format=None, buffer_size=4096, backend=None):
+            frames = -1 if num_frames is None or num_frames < 0 else num_frames
+            data, sample_rate = sf.read(path, start=frame_offset, frames=frames, dtype="float32", always_2d=True)
+            array = data.T.copy() if channels_first else data.copy()
+            return torch.from_numpy(np.asarray(array)), sample_rate
+        torchaudio.load = _soundfile_load
     from pd_exp.common import (
         DEFAULT_TEXT,
         indexed_path,
@@ -173,11 +187,22 @@ def main() -> int:
     work.mkdir(parents=True)
     overall_started = time.perf_counter()
     baseline = read_json(args.baseline_tokens)
-    canonical_only = args.prompt_payload is not None and args.skip_acoustic
+    if args.prompt_payload is not None and args.prompt_payload_list is not None:
+        raise ValueError("use only one of --prompt-payload/--prompt-payload-list")
+    canonical_payload = args.prompt_payload
+    payload_list = None
+    if args.prompt_payload_list is not None:
+        payload_list = [Path(item) for item in json.loads(
+            args.prompt_payload_list.read_text(encoding="utf-8")
+        )]
+        if len(payload_list) < args.batch_size:
+            raise ValueError("prompt-payload-list must contain at least batch-size payloads")
+        canonical_payload = payload_list[0]
+    canonical_only = canonical_payload is not None and args.skip_acoustic
     backend = None
     if canonical_only:
         payload = torch.load(
-            args.prompt_payload, map_location="cpu", weights_only=False,
+            canonical_payload, map_location="cpu", weights_only=False,
         )
         spans = payload["metadata"]["spans"]
         text = baseline["text"]
@@ -218,9 +243,9 @@ def main() -> int:
             minimum_tokens=minimum_tokens, maximum_tokens=maximum_tokens,
             seed=args.seed, stop_token_ids=list(llm.stop_token_ids),
         )
-        if args.prompt_payload is not None:
+        if canonical_payload is not None:
             payload = torch.load(
-                args.prompt_payload, map_location="cpu", weights_only=False,
+                canonical_payload, map_location="cpu", weights_only=False,
             )
             spans = payload["metadata"]["spans"]
     input_path = work / "prompt_embeds.pt"
@@ -266,6 +291,11 @@ def main() -> int:
         "--side-channel-port", str(args.decode_side_channel_port),
         "--trace", str(decode_trace),
     ]
+    if args.prompt_payload_list is not None:
+        for command in (prefill_cmd, decode_cmd):
+            command.remove("--input")
+            command.remove(str(input_path))
+            command.extend(["--input-list", str(args.prompt_payload_list)])
     if os.environ.get("COSY_PD_TRUNCATE_PREFILL_LAST") == "1":
         prefill_cmd.append("--truncate-last-prompt-token")
     if args.instrument_nixl:
@@ -356,6 +386,13 @@ def main() -> int:
     if canonical_only and raw_comparison["token_by_token_equal"]:
         filtered_tokens = list(baseline["filtered_speech_tokens"])
         dropped_indexes = list(baseline["dropped_silent_token_indexes"])
+    elif args.skip_acoustic:
+        # LLM-only cost/interference runs do not consume filtered tokens.
+        # Normal BF16/top-p sampling may legitimately differ from the
+        # canonical baseline, so do not turn that expected sensitivity into
+        # a benchmark failure.
+        filtered_tokens = []
+        dropped_indexes = []
     else:
         from research.error_pattern.phase2_5_core import filter_silent_tokens
 

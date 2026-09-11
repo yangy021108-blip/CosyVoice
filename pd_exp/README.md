@@ -110,3 +110,7 @@ nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory --format=c
 
 完整数据和结论见根目录 `PD_H100_REPORT.md`；干扰实验的边界与失败记录见
 `pd_interference_results.md`。
+
+## Service-scenario benchmark (vLLM 0.25.1)
+
+The persistent 30-repeat interference, timing decomposition, complete-pipeline pilot, and same-cost mixed-concurrency results are documented in [`pd_service_benchmark.md`](pd_service_benchmark.md). This remains an independent PoC; production defaults are unchanged.

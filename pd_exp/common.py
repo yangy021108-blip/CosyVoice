@@ -10,6 +10,7 @@ from __future__ import annotations
 import inspect
 import json
 import os
+import socket
 import time
 import uuid
 from pathlib import Path
@@ -197,20 +198,38 @@ def run_engine_request(
         torch.cuda.nvtx.range_push(nvtx_label)
         nvtx_pushed = True
     started = time.perf_counter()
+    add_request_started = time.perf_counter()
     engine.add_request(
         request_id,
         {"prompt_embeds": prompt_embeds},
         sampling_params,
     )
+    add_request_seconds = time.perf_counter() - add_request_started
     first_token_at: float | None = None
     token_times: list[float] = []
     output_batch_sizes: list[int] = []
+    detailed_steps = os.environ.get("COSY_PD_TIMING_STEPS") == "1"
+    step_records: list[dict[str, float | int]] = []
+    empty_step_count = 0
+    nonempty_step_count = 0
     previous_count = 0
     final_output = None
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
+        step_started = time.perf_counter()
         request_outputs = engine.step()
-        now = time.perf_counter()
+        step_finished = time.perf_counter()
+        now = step_finished
+        if request_outputs:
+            nonempty_step_count += 1
+        else:
+            empty_step_count += 1
+        if detailed_steps:
+            step_records.append({"step": len(step_records),
+                                 "started_seconds": step_started - started,
+                                 "finished_seconds": step_finished - started,
+                                 "wall_seconds": step_finished - step_started,
+                                 "outputs": len(request_outputs)})
         for output in request_outputs:
             if output.request_id != request_id:
                 raise RuntimeError(
@@ -290,6 +309,13 @@ def run_engine_request(
         "num_cached_tokens": getattr(final_output, "num_cached_tokens", None),
         "finish_reason": getattr(final_output.outputs[0], "finish_reason", None),
         "stop_reason": getattr(final_output.outputs[0], "stop_reason", None),
+        "driver_timing": {
+            "add_request_seconds": add_request_seconds,
+            "empty_step_count": empty_step_count,
+            "nonempty_step_count": nonempty_step_count,
+            "step_records": step_records if detailed_steps else None,
+            "step_wall_seconds": [x["wall_seconds"] for x in step_records] if detailed_steps else None,
+        },
         "engine_metrics": {
             name: getattr(metrics_obj, name, None)
             for name in (
@@ -376,12 +402,37 @@ def run_engine_requests(
                     and len(tokens) >= progress_tokens
                     and not state.get("progress_emitted")
                 ):
-                    write_json(Path(progress_path), {
+                    event = {
                         "request_id": output.request_id,
                         "observed_tokens": len(tokens),
                         "monotonic_ns": time.perf_counter_ns(),
-                    })
+                    }
+                    write_json(Path(progress_path), event)
                     state["progress_emitted"] = True
+                socket_path = os.environ.get("COSY_PD_PROGRESS_SOCKET")
+                if (
+                    socket_path
+                    and output.request_id == progress_request
+                    and len(tokens) >= progress_tokens
+                    and not state.get("socket_progress_emitted")
+                ):
+                    event = {
+                        "request_id": output.request_id,
+                        "observed_tokens": len(tokens),
+                        "monotonic_ns": time.perf_counter_ns(),
+                    }
+                    deadline = time.monotonic() + 5.0
+                    while True:
+                        try:
+                            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as channel:
+                                channel.connect(socket_path)
+                                channel.sendall((json.dumps(event) + "\n").encode("utf-8"))
+                            break
+                        except (FileNotFoundError, ConnectionRefusedError):
+                            if time.monotonic() >= deadline:
+                                raise
+                            time.sleep(0.001)
+                    state["socket_progress_emitted"] = True
             if output.finished and state["finished"] is None:
                 state["finished"] = now
         if all(state["finished"] is not None for state in states.values()):

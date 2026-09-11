@@ -13,7 +13,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", required=True)
     parser.add_argument("--model-dir", type=Path, required=True)
-    parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument("--input", type=Path, default=None)
+    parser.add_argument("--input-list", type=Path, default=None,
+                        help="JSON list of payload paths, one per batch slot.")
     parser.add_argument("--prefill-output", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--ready", type=Path, required=True)
@@ -72,7 +74,18 @@ def main() -> int:
 
     engine = None
     try:
-        prompt_embeds, metadata = load_prompt_payload(args.input)
+        if (args.input is None) == (args.input_list is None):
+            raise ValueError("provide exactly one of --input or --input-list")
+        payload_paths = None
+        if args.input_list is not None:
+            import json
+            payload_paths = [Path(item) for item in json.loads(
+                args.input_list.read_text(encoding="utf-8")
+            )]
+            if len(payload_paths) < args.batch_size:
+                raise ValueError("input-list must contain at least batch-size payloads")
+        first_payload = args.input if payload_paths is None else payload_paths[0]
+        prompt_embeds, metadata = load_prompt_payload(first_payload)
         engine = build_engine(
             args.model_dir,
             kv_role="kv_consumer",
@@ -95,8 +108,15 @@ def main() -> int:
                 prefill = read_json(prefill_output)
                 if prefill.get("status") != "ok":
                     raise RuntimeError(f"Prefill worker failed: {prefill}")
+                request_payload = (
+                    args.input if payload_paths is None
+                    else payload_paths[batch_index]
+                )
+                request_embeds, request_metadata = load_prompt_payload(
+                    request_payload
+                )
                 sampling = make_sampling_params(
-                    metadata,
+                    request_metadata,
                     kv_transfer_params=prefill["kv_transfer_params"],
                     prefill_only=False,
                 )
@@ -108,7 +128,7 @@ def main() -> int:
                 request_ids.append(request_id)
                 request_specs.append({
                     "request_id": request_id,
-                    "prompt_embeds": prompt_embeds,
+                    "prompt_embeds": request_embeds,
                     "sampling_params": sampling,
                 })
             results = run_engine_requests(

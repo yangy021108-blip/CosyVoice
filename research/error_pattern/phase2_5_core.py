@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import hashlib
 import json
 import math
@@ -88,6 +89,19 @@ def load_research_backend(
     fp16: bool,
 ) -> tuple[Any, VoiceSpec]:
     """Load one offline model and register the same server-owned voice."""
+    local_wetext = os.environ.get("COSY_PD_WETEXT_LOCAL", "").strip()
+    if local_wetext:
+        import wetext.wetext as _wetext_impl
+        _wetext_impl.snapshot_download = lambda _name: local_wetext
+    if os.environ.get("COSY_PD_SOUND_FILE_FALLBACK") == "1":
+        import torchaudio
+        import soundfile as sf
+        def _soundfile_load(path, frame_offset=0, num_frames=-1, normalize=True, channels_first=True, format=None, buffer_size=4096, backend=None):
+            frames = -1 if num_frames is None or num_frames < 0 else num_frames
+            data, sample_rate = sf.read(path, start=frame_offset, frames=frames, dtype="float32", always_2d=True)
+            array = data.T.copy() if channels_first else data.copy()
+            return torch.from_numpy(np.asarray(array)), sample_rate
+        torchaudio.load = _soundfile_load
     matcha_path = repository_root / "third_party" / "Matcha-TTS"
     if str(matcha_path) not in sys.path:
         sys.path.append(str(matcha_path))
